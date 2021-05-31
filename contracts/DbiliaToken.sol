@@ -74,7 +74,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     * 1. user pays gas fee to Dbilia in USD
     *
     * @param _royaltyReceiverId internal id of creator of card
-    * @param _minterId w2user minter's internal id
+    * @param _minterId minter's internal id
     * @param _productId product id
     * @param _edition edition number
     * @param _tokenURI token uri stored in IPFS
