@@ -258,14 +258,47 @@ describe("Token contract", function () {
 
   describe("CEO sets flat fee", function () {
     const newFeePercent = 27;
+
     beforeEach(async function () {
       await DbiliaToken.setFlatFee(newFeePercent);
     });
+    
     it("Should change the flat fee", async function () {
       expect(await DbiliaToken.feePercent()).to.equal(newFeePercent);
     });
     it("Should fail when other accounts trying to trigger", async function () {
-      await expect(DbiliaToken.connect(user1).setFlatFee(27)).to.be.revertedWith("caller is not CEO");
+      await expect(
+        DbiliaToken.connect(user1).setFlatFee(27)
+      ).to.be.revertedWith("caller is not CEO");
     });
-  })
+  });
+
+  describe("Dbilia changes w2user ownership", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const minterId = "6099967cb589f4488cdb8105";
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const minterId2 = "1042967cb589f4488cdb5346"
+
+    beforeEach(async function () {
+      await DbiliaToken.connect(dbilia).mintWithUSD(
+        royaltyReceiverId,
+        minterId,
+        productId,
+        edition,
+        tokenURI
+      );
+      await DbiliaToken.connect(dbilia).changeW2userOwnership(1, minterId2);
+    });
+
+    it("Should change ownership", async function () {
+      expect(await DbiliaToken.tokenOwner(1)).to.equal(minterId2);
+    });   
+    it("Should fail when other accounts trying to trigger", async function () {
+      await expect(
+        DbiliaToken.connect(user1).changeW2userOwnership(1, minterId2)
+      ).to.be.revertedWith("caller is not one of Dbilia accounts");
+    });
+  });
 });
