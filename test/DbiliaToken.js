@@ -1,6 +1,6 @@
-const { expect, should } = require("chai");
+const { expect } = require("chai");
 
-describe("Token contract", function () {
+describe("DbiliaToken contract", function () {
   var name = "Dbilia Token";
   var symbol = "DBT";
   var feePercent = 25;

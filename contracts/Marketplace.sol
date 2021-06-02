@@ -57,39 +57,39 @@ contract Marketplace is PriceConsumerV3 {
         dbiliaToken = DbiliaToken(_tokenAddress);
     }
 
+    /**
+        SET FOR SALE FUNCTIONS 
+        - When w2 or w3user wants to put it up for sale
+        - trigger getTokenOwnership() by passing in tokenId and find if it belongs to w2 or w3user
+        - if w2 or w3user wants to pay in USD, they pay gas fee to Dbilia first
+        - then Dbilia triggers setForSaleWithUSD for them
+        - if w3user wants to pay in ETH they can trigger setForSaleWithETH,
+        - but msg.sender must have the ownership of token
+     */
+
   /**
-    * w2user, w3user selling a token in USD
+    * w2, w3user selling a token in USD
     *
     * Preconditions
     * 1. before we make this contract go live,
     * 2. trigger setApprovalForAll() from Dbilia EOA to approve this contract
     * 3. seller pays gas fee in USD
+    * 4. trigger getTokenOwnership() and if tokenId belongs to w3user,
+    * 5. call isApprovedForAll() first to check whether w3user has approved the contract on his behalf
+    * 6. if not, w3user has to trigger setApprovalForAll() with his ETH to trigger setForSaleWithUSD()
     *
     * @param _tokenId token id to sell
     * @param _priceUSD price in USD to sell
     */
-    function setForSaleWithUSD(
-        uint256 _tokenId, 
-        uint256 _priceUSD
-    ) 
-        public 
-        isActive 
-        onlyDbilia 
-    {  
+    function setForSaleWithUSD(uint256 _tokenId, uint256 _priceUSD) public isActive onlyDbilia {  
         require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
         require(_tokenId > 0, "token id is zero or lower");
         require(_priceUSD > 0, "price is zero or lower");
-        address owner = dbiliaToken.ownerOf(_tokenId);  
         require(
-            owner == dbiliaToken.owner() || 
-            owner == dbiliaToken.dbiliaTrust(),
-            "caller is not one of dbilia accounts"
-        );
-        require(
-            dbiliaToken.isApprovedForAll(owner, address(this)),
+            dbiliaToken.isApprovedForAll(dbiliaToken.dbiliaTrust(), address(this)),
             "Dbilia did not approve Marketplace contract"
         );        
-        tokenPriceUSD[_tokenId] = _priceUSD;
+        tokenPriceUSD[_tokenId] = _priceUSD;   
         emit SetForSale(_tokenId, _priceUSD, msg.sender, block.timestamp);
     }
 
@@ -117,11 +117,12 @@ contract Marketplace is PriceConsumerV3 {
     }
 
   /**
-    * w2user, w3user purchasing in USD 
+    * w2user purchasing in USD 
     * function triggered by Dbilia
     *
     * Preconditions
-    * 1. call tokenOwner() to check w2user holding the token
+    * 1. call getTokenOwnership() to check whether seller is w2 or w3user holding the token
+    * 2. if seller is w3user, call ownerOf() to check seller still holds the token
     * 2. call tokenPriceUSD() to get the price of token
     * 3. buyer pays 2.5% fee
     * 4. buyer pays gas fee
@@ -133,73 +134,81 @@ contract Marketplace is PriceConsumerV3 {
     * 2. increase the royalty receiver's internal USD wallet balance
     *
     * @param _tokenId token id to buy
-    * @param _buyer (optional) buyer's w3user EOA
-    * @param _objectId (optional) buyer's w2user internal id
-    * @param _isW3user whether buyer is w2user or w3user
+    * @param _buyerId buyer's w2user internal id
     */
-    function purchaseTokenWithUSD(
-        uint256 _tokenId, 
-        address _buyer,
-        string memory _objectId,
-        bool _isW3user
-    ) 
+    function purchaseTokenWithUSDw2user(uint256 _tokenId, string memory _buyerId) 
         public 
         isActive
         onlyDbilia    
     {       
         require(tokenPriceUSD[_tokenId] > 0, "seller not selling this token");
-        address owner = dbiliaToken.ownerOf(_tokenId);
-        // seller paid in USD which means token holder is dbilia
-        if (owner == dbiliaToken.owner() || owner == dbiliaToken.dbiliaTrust()) {
-            string memory tokenOwner = dbiliaToken.tokenOwner(_tokenId);
-            // confirm seller holds the token
-            require(bytes(tokenOwner).length > 0, "tokenId doesn't belong to seller");
-            // w3user buying
-            // transfer token from dbilia EOA to w3user's EOA
-            // remove w2user's token ownership
-            // remove price mapped to token
-            if (_isW3user) {
-                require(_buyer != address(0), "buyer EOA is empty");
-                require(_buyer != owner, "owner cannot buy his own");
-                dbiliaToken.safeTransferFrom(dbiliaToken.dbiliaTrust(), _buyer, _tokenId);
-                dbiliaToken.changeW2userOwnership(_tokenId, "");
-                tokenPriceUSD[_tokenId] = 0;
-            // w2user buying
-            // dbilia keeps holding the token, but change the w2user ownership of token
-            } else {
-                require(bytes(_objectId).length > 0, "object Id is empty");
-                require(
-                    bytes(dbiliaToken.tokenOwner(_tokenId)).length > 0, 
-                    "tokenOwner is empty"
-                );
-                require(
-                    keccak256(bytes(_objectId)) != 
-                    keccak256(bytes(dbiliaToken.tokenOwner(_tokenId))), 
-                    "owner cannot buy his own"
-                );
-                dbiliaToken.changeW2userOwnership(_tokenId, _objectId);
-                tokenPriceUSD[_tokenId] = 0;
-            }
-        // seller is w3user who paid in ETH
-        } else {
-            // w3user buying
-            if (_isW3user) {
-                require(_buyer != address(0), "buyer EOA is empty");
-                require(_buyer != owner, "owner cannot buy his own");
-                dbiliaToken.safeTransferFrom(owner, _buyer, _tokenId);
-                dbiliaToken.changeW2userOwnership(_tokenId, "");                
-                tokenPriceUSD[_tokenId] = 0;
-            // w2user buying
-            // send the token to dbilia EOA
-            } else {
-                require(bytes(_objectId).length > 0, "object Id is empty");
-                dbiliaToken.safeTransferFrom(owner, dbiliaToken.dbiliaTrust(), _tokenId);
-                dbiliaToken.changeW2userOwnership(_tokenId, _objectId);
-                tokenPriceUSD[_tokenId] = 0;
-            }
-        }    
+        require(bytes(_buyerId).length > 0, "_buyerId Id is empty");
 
-        emit PurchaseTokenWithUSD(_tokenId, _buyer, _objectId, _isW3user, block.timestamp);  
+        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId); 
+
+        if (isW3user) {
+            address owner = dbiliaToken.ownerOf(_tokenId);
+            require(owner == w3owner, "wrong owner");
+            require(w3owner != address(0), "buyer EOA is empty");
+            dbiliaToken.safeTransferFrom(w3owner, dbiliaToken.dbiliaTrust(), _tokenId);
+            dbiliaToken.changeTokenOwnership(_tokenId, address(0), _buyerId);
+            tokenPriceUSD[_tokenId] = 0;
+        } else {
+
+        }      
+
+        //address owner = dbiliaToken.ownerOf(_tokenId);
+        // // seller paid in USD which means token holder is dbilia
+        // if (owner == dbiliaToken.owner() || owner == dbiliaToken.dbiliaTrust()) {
+        //     string memory tokenOwner = dbiliaToken.tokenOwner(_tokenId);
+        //     // confirm seller holds the token
+        //     require(bytes(tokenOwner).length > 0, "tokenId doesn't belong to seller");
+        //     // w3user buying
+        //     // transfer token from dbilia EOA to w3user's EOA
+        //     // remove w2user's token ownership
+        //     // remove price mapped to token
+        //     if (_isW3user) {
+        //         require(_buyer != address(0), "buyer EOA is empty");
+        //         require(_buyer != owner, "owner cannot buy his own");
+        //         dbiliaToken.safeTransferFrom(dbiliaToken.dbiliaTrust(), _buyer, _tokenId);
+        //         dbiliaToken.changeW2userOwnership(_tokenId, "");
+        //         tokenPriceUSD[_tokenId] = 0;
+        //     // w2user buying
+        //     // dbilia keeps holding the token, but change the w2user ownership of token
+        //     } else {
+        //         require(bytes(_buyerId).length > 0, "object Id is empty");
+        //         require(
+        //             bytes(dbiliaToken.tokenOwner(_tokenId)).length > 0, 
+        //             "tokenOwner is empty"
+        //         );
+        //         require(
+        //             keccak256(bytes(_buyerId)) != 
+        //             keccak256(bytes(dbiliaToken.tokenOwner(_tokenId))), 
+        //             "owner cannot buy his own"
+        //         );
+        //         dbiliaToken.changeW2userOwnership(_tokenId, _buyerId);
+        //         tokenPriceUSD[_tokenId] = 0;
+        //     }
+        // // seller is w3user who paid in ETH
+        // } else {
+        //     // w3user buying
+        //     if (_isW3user) {
+        //         require(_buyer != address(0), "buyer EOA is empty");
+        //         require(_buyer != owner, "owner cannot buy his own");
+        //         dbiliaToken.safeTransferFrom(owner, _buyer, _tokenId);
+        //         dbiliaToken.changeW2userOwnership(_tokenId, "");                
+        //         tokenPriceUSD[_tokenId] = 0;
+        //     // w2user buying
+        //     // send the token to dbilia EOA
+        //     } else {
+        //         require(bytes(_buyerId).length > 0, "object Id is empty");
+        //         dbiliaToken.safeTransferFrom(owner, dbiliaToken.dbiliaTrust(), _tokenId);
+        //         dbiliaToken.changeW2userOwnership(_tokenId, _buyerId);
+        //         tokenPriceUSD[_tokenId] = 0;
+        //     }
+        // }    
+
+        emit PurchaseTokenWithUSD(_tokenId, _buyer, _buyerId, _isW3user, block.timestamp);  
     }
 
   /**
