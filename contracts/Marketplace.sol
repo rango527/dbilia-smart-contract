@@ -20,25 +20,38 @@ contract Marketplace is PriceConsumerV3 {
         address indexed _seller,
         uint256 _timestamp
     );
-    event PurchaseTokenWithUSD(
+    event PurchaseWithUSD(
         uint256 _tokenId, 
         address indexed _buyer,
-        string _objectId,
+        string _buyerId,
         bool _isW3user,
+        address _w3owner,
+        string _w2owner,
         uint256 _timestamp
     );
-    event PurchaseTokenWithETH(
+    event PurchaseWithETH(
         uint256 _tokenId, 
         address indexed _buyer,
+        bool _isW3user,
+        address _w3owner,
+        string _w2owner,
+        uint256 _creatorReceives,
+        uint256 _sellerReceives,
+        uint256 _timestamp
+    );
+    event Royalty(
+        uint256 _tokenId, 
+        address indexed _sender, 
+        uint256 _amount, 
         uint256 _timestamp
     );
     event FlatFee(
         uint256 _tokenId, 
         address indexed _sender, 
-        uint256 _feeAmount, 
+        uint256 _amount, 
         uint256 _timestamp
     );
-
+    
     modifier isActive {
         require(!dbiliaToken.isMaintaining());
         _;
@@ -123,134 +136,178 @@ contract Marketplace is PriceConsumerV3 {
     * Preconditions
     * 1. call getTokenOwnership() to check whether seller is w2 or w3user holding the token
     * 2. if seller is w3user, call ownerOf() to check seller still holds the token
-    * 2. call tokenPriceUSD() to get the price of token
-    * 3. buyer pays 2.5% fee
-    * 4. buyer pays gas fee
-    * 5. check buyer paid in correct amount of USD (NFT price + 2.5% fee + gas fee)
+    * 3. call tokenPriceUSD() to get the price of token
+    * 4. buyer pays 2.5% fee
+    * 5. buyer pays gas fee
+    * 6. check buyer paid in correct amount of USD (NFT price + 2.5% fee + gas fee)
     *
     * After purchase
-    * i.e. seller receives = (tokenPriceUSD - seller 2.5% fee - royalty)
     * 1. increase the seller's internal USD wallet balance
+    *    - seller receives = (tokenPriceUSD - seller 2.5% fee - royalty)
+    *    - for royalty, use royaltyReceivers(tokenId)
     * 2. increase the royalty receiver's internal USD wallet balance
+    *    - for royalty, use royaltyReceivers(tokenId)
     *
     * @param _tokenId token id to buy
     * @param _buyerId buyer's w2user internal id
     */
-    function purchaseTokenWithUSDw2user(uint256 _tokenId, string memory _buyerId) 
+    function purchaseWithUSDw2user(uint256 _tokenId, string memory _buyerId) 
         public 
         isActive
         onlyDbilia    
     {       
-        require(tokenPriceUSD[_tokenId] > 0, "seller not selling this token");
-        require(bytes(_buyerId).length > 0, "_buyerId Id is empty");
+        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
+        require(bytes(_buyerId).length > 0, "buyerId Id is empty");
 
+        address owner = dbiliaToken.ownerOf(_tokenId);
         (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId); 
 
-        if (isW3user) {
-            address owner = dbiliaToken.ownerOf(_tokenId);
+        if (isW3user) {            
             require(owner == w3owner, "wrong owner");
-            require(w3owner != address(0), "buyer EOA is empty");
+            require(w3owner != address(0), "w3owner is empty");
             dbiliaToken.safeTransferFrom(w3owner, dbiliaToken.dbiliaTrust(), _tokenId);
             dbiliaToken.changeTokenOwnership(_tokenId, address(0), _buyerId);
             tokenPriceUSD[_tokenId] = 0;
         } else {
-
+            require(owner == dbiliaToken.dbiliaTrust(), "wrong owner");
+            require(bytes(w2owner).length > 0, "w2owner is empty");
+            dbiliaToken.changeTokenOwnership(_tokenId, address(0), _buyerId);
+            tokenPriceUSD[_tokenId] = 0;
         }      
 
-        //address owner = dbiliaToken.ownerOf(_tokenId);
-        // // seller paid in USD which means token holder is dbilia
-        // if (owner == dbiliaToken.owner() || owner == dbiliaToken.dbiliaTrust()) {
-        //     string memory tokenOwner = dbiliaToken.tokenOwner(_tokenId);
-        //     // confirm seller holds the token
-        //     require(bytes(tokenOwner).length > 0, "tokenId doesn't belong to seller");
-        //     // w3user buying
-        //     // transfer token from dbilia EOA to w3user's EOA
-        //     // remove w2user's token ownership
-        //     // remove price mapped to token
-        //     if (_isW3user) {
-        //         require(_buyer != address(0), "buyer EOA is empty");
-        //         require(_buyer != owner, "owner cannot buy his own");
-        //         dbiliaToken.safeTransferFrom(dbiliaToken.dbiliaTrust(), _buyer, _tokenId);
-        //         dbiliaToken.changeW2userOwnership(_tokenId, "");
-        //         tokenPriceUSD[_tokenId] = 0;
-        //     // w2user buying
-        //     // dbilia keeps holding the token, but change the w2user ownership of token
-        //     } else {
-        //         require(bytes(_buyerId).length > 0, "object Id is empty");
-        //         require(
-        //             bytes(dbiliaToken.tokenOwner(_tokenId)).length > 0, 
-        //             "tokenOwner is empty"
-        //         );
-        //         require(
-        //             keccak256(bytes(_buyerId)) != 
-        //             keccak256(bytes(dbiliaToken.tokenOwner(_tokenId))), 
-        //             "owner cannot buy his own"
-        //         );
-        //         dbiliaToken.changeW2userOwnership(_tokenId, _buyerId);
-        //         tokenPriceUSD[_tokenId] = 0;
-        //     }
-        // // seller is w3user who paid in ETH
-        // } else {
-        //     // w3user buying
-        //     if (_isW3user) {
-        //         require(_buyer != address(0), "buyer EOA is empty");
-        //         require(_buyer != owner, "owner cannot buy his own");
-        //         dbiliaToken.safeTransferFrom(owner, _buyer, _tokenId);
-        //         dbiliaToken.changeW2userOwnership(_tokenId, "");                
-        //         tokenPriceUSD[_tokenId] = 0;
-        //     // w2user buying
-        //     // send the token to dbilia EOA
-        //     } else {
-        //         require(bytes(_buyerId).length > 0, "object Id is empty");
-        //         dbiliaToken.safeTransferFrom(owner, dbiliaToken.dbiliaTrust(), _tokenId);
-        //         dbiliaToken.changeW2userOwnership(_tokenId, _buyerId);
-        //         tokenPriceUSD[_tokenId] = 0;
-        //     }
-        // }    
+        emit PurchaseWithUSD(
+            _tokenId, 
+            address(0), 
+            _buyerId, 
+            isW3user, 
+            w3owner, 
+            w2owner, 
+            block.timestamp
+        );  
+    }
 
-        emit PurchaseTokenWithUSD(_tokenId, _buyer, _buyerId, _isW3user, block.timestamp);  
+  /**
+    * w3user purchasing in USD 
+    * function triggered by Dbilia
+    *
+    * Preconditions
+    * 1. call getTokenOwnership() to check whether seller is w2 or w3user holding the token
+    * 2. if seller is w3user, call ownerOf() to check seller still holds the token
+    * 3. call tokenPriceUSD() to get the price of token
+    * 4. buyer pays 2.5% fee
+    * 5. buyer pays gas fee
+    * 6. check buyer paid in correct amount of USD (NFT price + 2.5% fee + gas fee)
+    *
+    * After purchase
+    * 1. increase the seller's internal USD wallet balance
+    *    - seller receives = (tokenPriceUSD - seller 2.5% fee - royalty)
+    *    - for royalty, use royaltyReceivers(tokenId)
+    * 2. increase the royalty receiver's internal USD wallet balance
+    *    - for royalty, use royaltyReceivers(tokenId)
+    *
+    * @param _tokenId token id to buy
+    * @param _buyer buyer's w3user id
+    */
+    function purchaseWithUSDw3user(uint256 _tokenId, address _buyer) 
+        public 
+        isActive
+        onlyDbilia    
+    {       
+        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
+        require(_buyer != address(0), "buyer address is empty");
+
+        address owner = dbiliaToken.ownerOf(_tokenId);
+        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId); 
+
+        if (isW3user) {           
+            require(owner == w3owner, "wrong owner");
+            require(w3owner != address(0), "w3owner is empty");
+            dbiliaToken.safeTransferFrom(w3owner, _buyer, _tokenId);
+            dbiliaToken.changeTokenOwnership(_tokenId, _buyer, "");
+            tokenPriceUSD[_tokenId] = 0;
+        } else {
+            require(owner == dbiliaToken.dbiliaTrust(), "wrong owner");
+            require(bytes(w2owner).length > 0, "w2owner is empty");
+            dbiliaToken.safeTransferFrom(dbiliaToken.dbiliaTrust(), _buyer, _tokenId);
+            dbiliaToken.changeTokenOwnership(_tokenId, _buyer, "");
+            tokenPriceUSD[_tokenId] = 0;
+        }      
+
+        emit PurchaseWithUSD(
+            _tokenId, 
+            _buyer, 
+            "", 
+            isW3user, 
+            w3owner, 
+            w2owner, 
+            block.timestamp
+        );  
     }
 
   /**
     * w3user purchasing in ETH 
     * function triggered by w3user
     *
-    * Precondition
-    * 1. add up buyer fee 2.5% in msg.value
+    * Preconditions
+    * 1. call getTokenOwnership() to check whether seller is w2 or w3user holding the token
+    * 2. if seller is w3user, call ownerOf() to check seller still holds the token
+    * 3. call tokenPriceUSD() to get the price of token
+    * 4. do conversion and calculate how much buyer needs to pay in ETH
+    * 5. add up buyer fee 2.5% in msg.value
+    *
+    * After purchase
+    * 1. increase the seller's internal ETH wallet balance
+    *    - seller receives = (tokenPriceUSD - seller 2.5% fee - royalty)
+    *    - for royalty, use royaltyReceivers(tokenId)
+    * 2. increase the royalty receiver's internal ETH wallet balance
+    *    - for royalty, use royaltyReceivers(tokenId)    
+    *    - use royaltyAmount from its event
     *
     * @param _tokenId token id to buy
     */
-    function purchaseTokenWithETH(uint256 _tokenId) public payable isActive {   
-        require(tokenPriceUSD[_tokenId] > 0, "seller not selling this token");
+    function purchaseWithETHw3user(uint256 _tokenId) public payable isActive {   
+        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
     
         _validateETHtoUSD(_tokenId);
 
-        address owner = dbiliaToken.ownerOf(_tokenId);  
-        // seller paid in USD which means token holder is dbilia
-        if (owner == dbiliaToken.owner() || owner == dbiliaToken.dbiliaTrust()) {
-            string memory tokenOwner = dbiliaToken.tokenOwner(_tokenId);
-            // confirm seller holds the token
-            require(bytes(tokenOwner).length > 0, "tokenId doesn't belong to seller");
-            // transfer token from dbilia EOA to w3user's EOA
-            // remove w2user's token ownership
-            // remove price mapped to token
-            dbiliaToken.safeTransferFrom(dbiliaToken.dbiliaTrust(), msg.sender, _tokenId);
-            dbiliaToken.changeW2userOwnership(_tokenId, "");
+        address owner = dbiliaToken.ownerOf(_tokenId);
+        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId); 
+
+        if (isW3user) {
+            require(owner == w3owner, "wrong owner");
+            require(w3owner != address(0), "w3owner is empty");
+            dbiliaToken.safeTransferFrom(w3owner, msg.sender, _tokenId);
+            dbiliaToken.changeTokenOwnership(_tokenId, msg.sender, "");
             tokenPriceUSD[_tokenId] = 0;
-        // seller is w3user who paid in ETH
         } else {
-            dbiliaToken.safeTransferFrom(owner, msg.sender, _tokenId);
-            dbiliaToken.changeW2userOwnership(_tokenId, "");                
-            tokenPriceUSD[_tokenId] = 0;     
-        }    
+            require(owner == dbiliaToken.dbiliaTrust(), "wrong owner");
+            require(bytes(w2owner).length > 0, "w2owner is empty");
+            dbiliaToken.safeTransferFrom(dbiliaToken.dbiliaTrust(), msg.sender, _tokenId);
+            dbiliaToken.changeTokenOwnership(_tokenId, msg.sender, "");
+            tokenPriceUSD[_tokenId] = 0;
+        }      
         
-        // pay royalty
+        // send royalty
+        uint256 royaltyAmount = _sendRoyalty(_tokenId, msg.value);
         // pay buyer fee
-        _payFlatFee(_tokenId, msg.value);
+        uint256 buyerFeeAmount = _payFlatFee(_tokenId, msg.value);
         // pay seller fee
-        _payFlatFee(_tokenId, msg.value);
-        
-        emit PurchaseTokenWithETH(_tokenId, msg.sender, block.timestamp);
+        uint256 sellerFeeAmount = _payFlatFee(_tokenId, msg.value);
+        // Send rest to seller
+        uint256 sellerReceiveAmount = msg.value - (royaltyAmount + buyerFeeAmount + sellerFeeAmount);
+
+        _send(sellerReceiveAmount, isW3user ? w3owner : dbiliaToken.dbiliaTrust());
+
+        emit PurchaseWithETH(
+            _tokenId, 
+            msg.sender, 
+            isW3user,
+            w3owner, 
+            w2owner, 
+            royaltyAmount, 
+            sellerReceiveAmount, 
+            block.timestamp
+        );
     }
 
   /**
@@ -266,18 +323,33 @@ contract Marketplace is PriceConsumerV3 {
     }  
 
   /**
+    * Pay royalty from w3user to creator
+    * Dbilia receives on creator's behalf
+    *
+    * @param _tokenId token id
+    * @param _price price of NFT converted to ETH
+    */
+    function _sendRoyalty(uint256 _tokenId, uint256 _price) private returns (uint256) {
+        (, uint8 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
+        uint256 royaltyAmount = _price.mul(percentage).div(1000);
+        require(msg.value >= royaltyAmount, "caller sent fee lower than royaltyAmount");
+        _send(royaltyAmount, dbiliaToken.dbiliaTrust());
+        emit Royalty(_tokenId, msg.sender, royaltyAmount, block.timestamp);
+        return royaltyAmount;
+    } 
+
+  /**
     * Pay flat fee from w3user to Dbilia
     *
     * @param _tokenId token id
     * @param _price price of NFT converted to ETH
     */
-    function _payFlatFee(uint256 _tokenId, uint256 _price) private {
-        require(_tokenId > 0, "token id is zero or lower");
-        require(_price > 0, "price is zero or lower");
+    function _payFlatFee(uint256 _tokenId, uint256 _price) private returns (uint256) {
         uint256 feeAmount = _price.mul(dbiliaToken.feePercent()).div(1000);
         require(msg.value >= feeAmount, "caller sent fee lower than feeAmount");
         _send(feeAmount, dbiliaToken.dbiliaTrust());
         emit FlatFee(_tokenId, msg.sender, feeAmount, block.timestamp);
+        return feeAmount;
     }  
 
   /**
