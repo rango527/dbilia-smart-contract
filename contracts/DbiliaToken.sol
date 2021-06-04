@@ -43,6 +43,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   event MintWithUSDw2user(
     uint256 _tokenId, 
     string _royaltyReceiverId,
+    uint8 _royaltyPercentage,
     string _minterId,
     string _productId, 
     uint32 _edition, 
@@ -51,6 +52,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   event MintWithUSDw3user(
     uint256 _tokenId, 
     string _royaltyReceiverId,
+    uint8 _royaltyPercentage,
     address _minter,
     string _productId, 
     uint32 _edition, 
@@ -59,6 +61,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   event MintWithETH(
     uint256 _tokenId, 
     string _royaltyReceiverId,
+    uint8 _royaltyPercentage,
     address _minterAddress, 
     string _productId, 
     uint32 _edition, 
@@ -149,7 +152,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     _mint(msg.sender, newTokenId);
     _setTokenURI(newTokenId, _tokenURI);
 
-    emit MintWithUSDw2user(newTokenId, _royaltyReceiverId, _minterId, _productId, _edition, block.timestamp);
+    emit MintWithUSDw2user(newTokenId, _royaltyReceiverId, _royaltyPercentage, _minterId, _productId, _edition, block.timestamp);
   }  
 
 /**
@@ -210,7 +213,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     _mint(_minter, newTokenId);
     _setTokenURI(newTokenId, _tokenURI);
 
-    emit MintWithUSDw3user(newTokenId, _royaltyReceiverId, _minter, _productId, _edition, block.timestamp);
+    emit MintWithUSDw3user(newTokenId, _royaltyReceiverId, _royaltyPercentage, _minter, _productId, _edition, block.timestamp);
   }  
 
   /**
@@ -263,7 +266,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     _mint(msg.sender, newTokenId);
     _setTokenURI(newTokenId, _tokenURI);
 
-    emit MintWithETH(newTokenId, _royaltyReceiverId, msg.sender, _productId, _edition, block.timestamp);
+    emit MintWithETH(newTokenId, _royaltyReceiverId, _royaltyPercentage, msg.sender, _productId, _edition, block.timestamp);
   }  
 
   /**
