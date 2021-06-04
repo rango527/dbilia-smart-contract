@@ -100,9 +100,14 @@ describe("DbiliaToken contract", function () {
         expect(creator.receiverId).to.equal(
           royaltyReceiverId
         );
+        expect(creator.percentage).to.equal(
+          royaltyPercentage
+        );
       });
       it("Should track the owner of token", async function () {
         let tokenowner = await DbiliaToken.tokenOwners(1);
+        expect(tokenowner.w3owner).to.equal("0x0000000000000000000000000000000000000000");
+        expect(tokenowner.isW3user).to.equal(false);
         expect(tokenowner.w2owner).to.equal(minterId);
       });
       it("Should map productId and edition to a new token", async function () {
@@ -224,10 +229,15 @@ describe("DbiliaToken contract", function () {
         expect(creator.receiverId).to.equal(
           royaltyReceiverId
         );
+        expect(creator.percentage).to.equal(
+          royaltyPercentage
+        );
       });
       it("Should track the owner of token", async function () {
         let tokenowner = await DbiliaToken.tokenOwners(1);
         expect(tokenowner.w3owner).to.equal(user1.address);
+        expect(tokenowner.isW3user).to.equal(true);
+        expect(tokenowner.w2owner).to.equal('');
       });
       it("Should map productId and edition to a new token", async function () {
         expect(await DbiliaToken.productEditions(productId, edition)).to.equal(
@@ -347,6 +357,9 @@ describe("DbiliaToken contract", function () {
         expect(creator.receiverId).to.equal(
           royaltyReceiverId
         );
+        expect(creator.percentage).to.equal(
+          royaltyPercentage
+        );
       });
       it("Should track the owner of token", async function () {
         expect(await DbiliaToken.ownerOf(1)).to.equal(user1.address);
@@ -449,6 +462,8 @@ describe("DbiliaToken contract", function () {
 
     it("Should change ownership", async function () {
       let tokenowner = await DbiliaToken.tokenOwners(1);
+      expect(tokenowner.w3owner).to.equal("0x0000000000000000000000000000000000000000");
+      expect(tokenowner.isW3user).to.equal(false);
       expect(tokenowner.w2owner).to.equal(minterId2);
     });
     it("Should fail when other accounts trying to trigger", async function () {
@@ -480,6 +495,8 @@ describe("DbiliaToken contract", function () {
     it("Should change ownership", async function () {
       let tokenowner = await DbiliaToken.tokenOwners(1);
       expect(tokenowner.w3owner).to.equal(user2.address);
+      expect(tokenowner.isW3user).to.equal(true);
+      expect(tokenowner.w2owner).to.equal('');
     });
     it("Should fail when other accounts trying to trigger", async function () {
       await expect(
