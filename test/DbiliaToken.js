@@ -1,4 +1,5 @@
 const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 describe("DbiliaToken contract", function () {
   var name = "Dbilia Token";
@@ -78,14 +79,18 @@ describe("DbiliaToken contract", function () {
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
 
     beforeEach(async function () {
-      await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(dbilia).mintWithUSDw2user(
         royaltyReceiverId,
         royaltyPercentage,
         minterId,
         productId,
         edition,
         tokenURI
-      );
+      )).to.emit(
+        DbiliaToken,
+        "MintWithUSDw2user"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, minterId, productId, edition, block.timestamp+1);
     });
 
     describe("Success", function () {
@@ -207,14 +212,18 @@ describe("DbiliaToken contract", function () {
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
 
     beforeEach(async function () {
-      await DbiliaToken.connect(dbilia).mintWithUSDw3user(
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(dbilia).mintWithUSDw3user(
         royaltyReceiverId,
         royaltyPercentage,
         user1.address,
         productId,
         edition,
         tokenURI
-      );
+      )).to.emit(
+        DbiliaToken,
+        "MintWithUSDw3user"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition, block.timestamp+1);
     });
 
     describe("Success", function () {
@@ -336,13 +345,17 @@ describe("DbiliaToken contract", function () {
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
 
     beforeEach(async function () {
-      await DbiliaToken.connect(user1).mintWithETH(
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(user1).mintWithETH(
         royaltyReceiverId,
         royaltyPercentage,
         productId,
         edition,
         tokenURI
-      );
+      )).to.emit(
+        DbiliaToken,
+        "MintWithETH"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition, block.timestamp+1);
     });
 
     describe("Success", function () {
@@ -457,7 +470,11 @@ describe("DbiliaToken contract", function () {
         edition,
         tokenURI
       );
-      await DbiliaToken.connect(dbilia).changeTokenOwnership(1, "0x0000000000000000000000000000000000000000", minterId2);
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(dbilia).changeTokenOwnership(1, "0x0000000000000000000000000000000000000000", minterId2)).to.emit(
+        DbiliaToken,
+        "ChangeTokenOwnership"
+      ).withArgs(1, minterId2, "0x0000000000000000000000000000000000000000", block.timestamp+1);
     });
 
     it("Should change ownership", async function () {
