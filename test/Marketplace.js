@@ -1,4 +1,5 @@
 const { expect } = require("chai");
+const { BigNumber } = require("ethers");
 
 describe("MarketPlace contract", function () {
   var name = "Dbilia Token";
@@ -374,6 +375,69 @@ describe("MarketPlace contract", function () {
         await expect(
           Marketplace.connect(user1).purchaseWithUSDw3user(1, user2.address)
         ).to.be.revertedWith("caller is not one of dbilia accounts");
+      });
+    });
+  });
+
+  describe("w3user is purchasing With ETH if seller is a web3 user", function () {
+    const priceUSD = 2000;
+
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 5;
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+
+    beforeEach(async function () {
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(user1).mintWithETH(
+        royaltyReceiverId,
+        royaltyPercentage,
+        productId,
+        edition,
+        tokenURI
+      )).to.emit(
+        DbiliaToken,
+        "MintWithETH"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition, block.timestamp+1);
+    });
+
+    beforeEach(async function () {
+      await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
+      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD);
+    });
+
+    describe("Success", function () {
+      beforeEach(async function () {
+        const payAmount = BigNumber.from((10**18).toString());
+        await Marketplace.connect(user2).purchaseWithETHw3user(1, { value: payAmount });
+      });
+
+      it("Should check balance", async function () {
+        const balance = await DbiliaToken.balanceOf(user2.address);
+        expect(balance.toString()).to.equal("1");
+      });
+      it("Should check token owner", async function () {
+        let tokenowner = await DbiliaToken.tokenOwners(1);
+        expect(tokenowner.w3owner).to.equal(user2.address);
+        expect(tokenowner.isW3user).to.equal(true);
+        expect(tokenowner.w2owner).to.equal('');
+      });
+    });
+
+    describe("Fail", function () {
+      it("Should fail if the seller is not selling the token", async function () {
+        const payAmount = BigNumber.from((10**18).toString());
+        await expect(
+          Marketplace.connect(user2).purchaseWithETHw3user(2, { value: payAmount })
+        ).to.be.revertedWith("seller is not selling this token"); 
+      });
+
+      it("Should fail if the pay amount is less than the token price", async function () {
+        const payAmount = BigNumber.from((10**17).toString());
+        await expect(
+          Marketplace.connect(user2).purchaseWithETHw3user(1, { value: payAmount })
+        ).to.be.revertedWith("not enough of ETH being sent"); 
       });
     });
   });

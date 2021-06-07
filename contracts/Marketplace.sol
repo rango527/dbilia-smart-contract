@@ -319,7 +319,7 @@ contract Marketplace is PriceConsumerV3 {
         uint256 tokenPrice = tokenPriceUSD[_tokenId];              
         // price of 1 ETH in USD
         int256 currentPriceOfETHtoUSD = getThePrice() / 10 ** 8;
-        require(msg.value >= tokenPrice / uint256(currentPriceOfETHtoUSD), "not enough of ETH being sent");
+        require(msg.value * uint256(currentPriceOfETHtoUSD) >= tokenPrice * (10 ** 18), "not enough of ETH being sent");
     }  
 
   /**
