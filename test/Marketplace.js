@@ -438,12 +438,24 @@ describe("MarketPlace contract", function () {
     describe("Success", function () {
       beforeEach(async function () {       
         const flatFee = await DbiliaToken.feePercent();
-        const buyerFee = (priceUSD * flatFee) / 1000;    
-        const buyerTotalInETH = (priceUSD + buyerFee) / currentPriceOfETHtoUSD;
-        const buyerTotalToWei = buyerTotalInETH * 10**18;
-        console.log("testfile", buyerTotalToWei.toString())
+        const buyerFee = (priceUSD * flatFee) / 1000;
+        // const buyerTotalInETH = (priceUSD + buyerFee) / currentPriceOfETHtoUSD;
+        // const buyerTotalToWei = buyerTotalInETH * 10**18;
+        const buyerTotalToWei = BigNumber.from(priceUSD + buyerFee).mul(BigNumber.from(1e18.toString())).div(BigNumber.from(currentPriceOfETHtoUSD));
+        console.log("testfile", buyerTotalToWei.toString());
+
+        const balance_user1 = await user1.getBalance();
+
+        const royalty = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(royaltyPercentage)).div(1000);
+        const fee = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(feePercent)).div(500);
+        const sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
+
         await Marketplace.connect(user2).purchaseWithETHw3user(1, { value: buyerTotalToWei.toString() });
-      });      
+
+        const balance_user1_afterSelling = await user1.getBalance();
+        expect(BigNumber.from(balance_user1).add(sellerReceiveAmount)).to.equal(BigNumber.from(balance_user1_afterSelling));
+      });
+
       it("Should check balance", async function () {
         const balance = await DbiliaToken.balanceOf(user2.address);
         expect(balance.toString()).to.equal("1");
