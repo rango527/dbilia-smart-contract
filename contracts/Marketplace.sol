@@ -289,10 +289,9 @@ contract Marketplace is PriceConsumerV3 {
         }      
         
         uint256 fee = _payBuyerSellerFee();
-        // send royalty
-        uint256 royaltyAmount = _sendRoyalty(_tokenId);     
-        // Send rest to seller
+        uint256 royaltyAmount = _sendRoyalty(_tokenId);   
         uint256 sellerReceiveAmount = msg.value.sub(fee.add(royaltyAmount));
+        
         _sendToSeller(sellerReceiveAmount, isW3user, w3owner);
 
         emit PurchaseWithETH(
@@ -320,7 +319,7 @@ contract Marketplace is PriceConsumerV3 {
         uint256 buyerFee = tokenPrice.mul(dbiliaToken.feePercent()).div(1000);
         uint256 buyerTotal = tokenPrice.add(buyerFee) * 10**18;
         uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
-        console.log("contract", buyerTotalToWei);
+        //console.log("contract", buyerTotalToWei);
         require(msg.value >= buyerTotalToWei, "not enough of ETH being sent");
     }  
 
