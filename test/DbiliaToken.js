@@ -4,7 +4,7 @@ const { ethers } = require("hardhat");
 describe("DbiliaToken contract", function () {
   var name = "Dbilia Token";
   var symbol = "DBT";
-  var feePercent = 25;
+  var feePercent = 25; // 2.5%
   let DbiliaToken;
   let Marketplace;
   let ceo;

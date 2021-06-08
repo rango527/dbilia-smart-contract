@@ -35,6 +35,7 @@ contract Marketplace is PriceConsumerV3 {
         bool _isW3user,
         address _w3owner,
         string _w2owner,
+        uint256 _fee,
         uint256 _creatorReceives,
         uint256 _sellerReceives,
         uint256 _timestamp
@@ -268,7 +269,7 @@ contract Marketplace is PriceConsumerV3 {
     function purchaseWithETHw3user(uint256 _tokenId) public payable isActive {   
         require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
     
-        _validateETHtoUSD(_tokenId);
+        _validateAmount(_tokenId);
 
         address owner = dbiliaToken.ownerOf(_tokenId);
         (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId); 
@@ -287,16 +288,12 @@ contract Marketplace is PriceConsumerV3 {
             tokenPriceUSD[_tokenId] = 0;
         }      
         
+        uint256 fee = _payBuyerSellerFee();
         // send royalty
-        uint256 royaltyAmount = _sendRoyalty(_tokenId, msg.value);
-        // pay buyer fee
-        uint256 buyerFeeAmount = _payFlatFee(_tokenId, msg.value);
-        // pay seller fee
-        uint256 sellerFeeAmount = _payFlatFee(_tokenId, msg.value);
+        uint256 royaltyAmount = _sendRoyalty(_tokenId);     
         // Send rest to seller
-        uint256 sellerReceiveAmount = msg.value - (royaltyAmount + buyerFeeAmount + sellerFeeAmount);
-
-        _send(sellerReceiveAmount, isW3user ? w3owner : dbiliaToken.dbiliaTrust());
+        uint256 sellerReceiveAmount = msg.value.sub(fee.add(royaltyAmount));
+        _sendToSeller(sellerReceiveAmount, isW3user, w3owner);
 
         emit PurchaseWithETH(
             _tokenId, 
@@ -304,6 +301,7 @@ contract Marketplace is PriceConsumerV3 {
             isW3user,
             w3owner, 
             w2owner, 
+            fee,
             royaltyAmount, 
             sellerReceiveAmount, 
             block.timestamp
@@ -312,44 +310,60 @@ contract Marketplace is PriceConsumerV3 {
 
   /**
     * Validate user purchasing in ETH matches with USD conversion using chainlink
+    * checks buyer fee of the token price as well (i.e. 2.5%)
     *
     * @param _tokenId token id
     */
-    function _validateETHtoUSD(uint256 _tokenId) private {
-        uint256 tokenPrice = tokenPriceUSD[_tokenId];              
-        // price of 1 ETH in USD
-        int256 currentPriceOfETHtoUSD = getThePrice() / 10 ** 8;
-        require(msg.value * uint256(currentPriceOfETHtoUSD) >= tokenPrice * (10 ** 18), "not enough of ETH being sent");
+    function _validateAmount(uint256 _tokenId) private {
+        uint256 tokenPrice = tokenPriceUSD[_tokenId];       
+        int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
+        uint256 buyerFee = tokenPrice.mul(dbiliaToken.feePercent()).div(1000);
+        uint256 buyerTotal = tokenPrice.add(buyerFee) * 10**18;
+        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
+        console.log("contract", buyerTotalToWei);
+        require(msg.value >= buyerTotalToWei, "not enough of ETH being sent");
     }  
 
   /**
-    * Pay royalty from w3user to creator
+    * Pay flat fees to Dbilia 
+    * i.e. buyer fee + seller fee = 5%
+    */
+    function _payBuyerSellerFee() private returns (uint256) {
+        uint256 feePercent = dbiliaToken.feePercent();
+        uint256 fee = msg.value.mul(feePercent.mul(2)).div(1000);
+        _send(fee, dbiliaToken.dbiliaTrust());
+        return fee;
+    }  
+
+  /**
+    * Pay royalty to creator
     * Dbilia receives on creator's behalf
     *
     * @param _tokenId token id
-    * @param _price price of NFT converted to ETH
     */
-    function _sendRoyalty(uint256 _tokenId, uint256 _price) private returns (uint256) {
+    function _sendRoyalty(uint256 _tokenId) private returns (uint256) {
         (, uint8 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
-        uint256 royaltyAmount = _price.mul(percentage).div(1000);
-        require(msg.value >= royaltyAmount, "caller sent fee lower than royaltyAmount");
-        _send(royaltyAmount, dbiliaToken.dbiliaTrust());
-        emit Royalty(_tokenId, msg.sender, royaltyAmount, block.timestamp);
-        return royaltyAmount;
+         uint256 royalty = msg.value.mul(percentage).div(1000);
+        _send(royalty, dbiliaToken.dbiliaTrust());
+        return royalty;
     } 
 
   /**
-    * Pay flat fee from w3user to Dbilia
-    *
-    * @param _tokenId token id
-    * @param _price price of NFT converted to ETH
+    * Send money to seller
+    * Dbilia keeps it if seller is w2user
+    * 
+    * @param sellerReceiveAmount total - (fee + royalty)
+    * @param _isW3user w3user or w3user
+    * @param _w3owner w3user EOA
     */
-    function _payFlatFee(uint256 _tokenId, uint256 _price) private returns (uint256) {
-        uint256 feeAmount = _price.mul(dbiliaToken.feePercent()).div(1000);
-        require(msg.value >= feeAmount, "caller sent fee lower than feeAmount");
-        _send(feeAmount, dbiliaToken.dbiliaTrust());
-        emit FlatFee(_tokenId, msg.sender, feeAmount, block.timestamp);
-        return feeAmount;
+    function _sendToSeller(
+        uint256 sellerReceiveAmount, 
+        bool _isW3user, 
+        address _w3owner
+    ) 
+        private 
+    {
+        _send(sellerReceiveAmount, _isW3user ? _w3owner : dbiliaToken.dbiliaTrust());
     }  
 
   /**
@@ -361,5 +375,13 @@ contract Marketplace is PriceConsumerV3 {
     function _send(uint256 _amount, address _to) private {    
         (bool success, ) = _to.call{value:_amount}("");
         require(success, "Transfer failed.");
+    }
+
+  /**
+    * Get current price of ETH to USD
+    *
+    */
+    function getCurrentPriceOfETHtoUSD() public view returns (int256) {
+        return getThePrice() / 10 ** 8;
     }
 }
