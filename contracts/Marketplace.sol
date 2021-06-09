@@ -40,18 +40,6 @@ contract Marketplace is PriceConsumerV3 {
         uint256 _sellerReceives,
         uint256 _timestamp
     );
-    event Royalty(
-        uint256 _tokenId, 
-        address indexed _sender, 
-        uint256 _amount, 
-        uint256 _timestamp
-    );
-    event FlatFee(
-        uint256 _tokenId, 
-        address indexed _sender, 
-        uint256 _amount, 
-        uint256 _timestamp
-    );
     
     modifier isActive {
         require(!dbiliaToken.isMaintaining());
