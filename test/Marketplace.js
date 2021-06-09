@@ -66,7 +66,11 @@ describe("MarketPlace contract", function () {
     describe("Success", function () {
       it("Should track tokens price", async function () {
         await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-        await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD);
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, priceUSD, user1.address, block.timestamp+1);
         const tokenPrice = await Marketplace.tokenPriceUSD(1);
         expect(tokenPrice).to.equal(priceUSD);
       });
@@ -116,7 +120,11 @@ describe("MarketPlace contract", function () {
     describe("Success", function () {
       it("Should check token owner", async function () {
         let tokenowner1 = await DbiliaToken.tokenOwners(1);
-        await Marketplace.connect(dbilia).purchaseWithUSDw2user(1, buyerId);
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(dbilia).purchaseWithUSDw2user(1, buyerId)).to.emit(
+          Marketplace,
+          "PurchaseWithUSD"
+        ).withArgs(1, "0x0000000000000000000000000000000000000000", buyerId, false, "0x0000000000000000000000000000000000000000", minterId, block.timestamp+1);
         let tokenowner = await DbiliaToken.tokenOwners(1);
         expect(tokenowner.w3owner).to.equal("0x0000000000000000000000000000000000000000");
         expect(tokenowner.isW3user).to.equal(false);
@@ -233,7 +241,11 @@ describe("MarketPlace contract", function () {
 
     describe("Success", function () {
       beforeEach(async function () {
-        await Marketplace.connect(dbilia).purchaseWithUSDw3user(1, user2.address);
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(dbilia).purchaseWithUSDw3user(1, user2.address)).to.emit(
+          Marketplace,
+          "PurchaseWithUSD"
+        ).withArgs(1, user2.address, "", false, "0x0000000000000000000000000000000000000000", minterId, block.timestamp+1);
       });
 
       it("Should check token owner", async function () {
@@ -410,9 +422,16 @@ describe("MarketPlace contract", function () {
           .sub(royalty)
           .sub(fee);
         //console.log("sellerReceiveAmount", sellerReceiveAmount.toString());
-        await Marketplace.connect(user2).purchaseWithETHw3user(1, {
+        // await Marketplace.connect(user2).purchaseWithETHw3user(1, {
+        //   value: buyerTotalToWei.toString(),
+        // });
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(user2).purchaseWithETHw3user(1, {
           value: buyerTotalToWei.toString(),
-        });
+        })).to.emit(
+          Marketplace,
+          "PurchaseWithETH"
+        ).withArgs(1, user2.address, false, "0x0000000000000000000000000000000000000000", minterId, fee, royalty, sellerReceiveAmount, block.timestamp+1);
       });
       it("Should send fee, royalty, payment to dbilia", async function () {
         const balance_dbilia_afterSelling = await dbilia.getBalance();
@@ -504,7 +523,13 @@ describe("MarketPlace contract", function () {
         fee = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(feePercent)).div(500);
         sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
 
-        await Marketplace.connect(user2).purchaseWithETHw3user(1, { value: buyerTotalToWei.toString() });
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(user2).purchaseWithETHw3user(1, {
+          value: buyerTotalToWei.toString(),
+        })).to.emit(
+          Marketplace,
+          "PurchaseWithETH"
+        ).withArgs(1, user2.address, true, user1.address, "", fee, royalty, sellerReceiveAmount, block.timestamp+1);
 
         const balance_user1_afterSelling = await user1.getBalance();
         expect(BigNumber.from(balance_user1).add(sellerReceiveAmount)).to.equal(BigNumber.from(balance_user1_afterSelling));
