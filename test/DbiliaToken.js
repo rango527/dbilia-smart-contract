@@ -521,4 +521,85 @@ describe("DbiliaToken contract", function () {
       ).to.be.revertedWith("caller is not one of Dbilia accounts");
     });
   });
+
+  describe("Claim nft token", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 5;
+    const minterId = "6099967cb589f4488cdb8105";
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const minterId2 = "1042967cb589f4488cdb5346";
+
+    beforeEach(async function () {
+      await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+        royaltyReceiverId,
+        royaltyPercentage,
+        minterId,
+        productId,
+        edition,
+        tokenURI
+      );
+      await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+        royaltyReceiverId,
+        royaltyPercentage,
+        minterId,
+        productId,
+        2,
+        tokenURI
+      );
+      await DbiliaToken.connect(dbilia).claimToken([1, 2], user2.address);
+    });
+
+    describe("Success", function () {
+      it("Should change ownership", async function () {
+        let token1owner = await DbiliaToken.tokenOwners(1);
+        expect(token1owner.w3owner).to.equal(user2.address);
+        expect(token1owner.isW3user).to.equal(true);
+        expect(token1owner.w2owner).to.equal('');
+        let token2owner = await DbiliaToken.tokenOwners(2);
+        expect(token2owner.w3owner).to.equal(user2.address);
+        expect(token2owner.isW3user).to.equal(true);
+        expect(token2owner.w2owner).to.equal('');
+      });
+  
+      it('Should track balance', async function () {
+        const balance = await DbiliaToken.balanceOf(user2.address);
+        expect(balance.toString()).to.equal("2");
+      });
+    });
+
+    describe("Fail", function () {
+      const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+      const royaltyPercentage = 5;
+      const productId = "60ad481e27a4265b10d73b13";
+      const edition = 1;
+      const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+
+      beforeEach(async function () {
+        await DbiliaToken.connect(dbilia).mintWithUSDw3user(
+          royaltyReceiverId,
+          royaltyPercentage,
+          user1.address,
+          productId,
+          3,
+          tokenURI
+        );
+        await DbiliaToken.connect(dbilia).mintWithUSDw3user(
+          royaltyReceiverId,
+          royaltyPercentage,
+          user1.address,
+          productId,
+          4,
+          tokenURI
+        );
+      });
+      it("Only web2 users token can be claimed", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).claimToken([1, 2, 3], user2.address)
+        ).to.be.revertedWith("Only web2 users token can be claimed");
+      })
+    });
+    
+  });
 });
