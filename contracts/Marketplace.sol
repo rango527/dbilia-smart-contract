@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "./DbiliaToken.sol";
 import "./PriceConsumerV3.sol";
 import "openzeppelin-solidity/contracts/utils/math/SafeMath.sol";
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 contract Marketplace is PriceConsumerV3 {
     using SafeMath for uint256;
@@ -306,8 +306,7 @@ contract Marketplace is PriceConsumerV3 {
         int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
         uint256 buyerFee = tokenPrice.mul(dbiliaToken.feePercent()).div(1000);
         uint256 buyerTotal = tokenPrice.add(buyerFee) * 10**18;
-        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
-        //console.log("contract", buyerTotalToWei);
+        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));        
         require(msg.value >= buyerTotalToWei, "not enough of ETH being sent");
     }  
 

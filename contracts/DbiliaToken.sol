@@ -5,7 +5,7 @@ import "openzeppelin-solidity/contracts/token/ERC721/ERC721.sol";
 import "openzeppelin-solidity/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "openzeppelin-solidity/contracts/utils/Counters.sol";
 import "./AccessControl.sol";
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 // contract deployer is CEO's EOA
 // CEO adds Dbilia EOA in AccessControl
