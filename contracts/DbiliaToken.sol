@@ -328,6 +328,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   function claimToken(uint256[] memory tokenIds, address w3user) public onlyDbilia {
     for (uint i = 0; i < tokenIds.length; i++) {
       require(!tokenOwners[tokenIds[i]].isW3user, "Only web2 users token can be claimed");
+      require(ownerOf(tokenIds[i]) == dbiliaTrust, "Dbilia wallet does not own this token");
       if (w3user != address(0)) {
         _transfer(dbiliaTrust, w3user, tokenIds[i]);
         tokenOwners[tokenIds[i]].isW3user = true;

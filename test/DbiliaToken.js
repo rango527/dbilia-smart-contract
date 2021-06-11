@@ -548,6 +548,14 @@ describe("DbiliaToken contract", function () {
         2,
         tokenURI
       );
+      await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+        royaltyReceiverId,
+        royaltyPercentage,
+        minterId,
+        productId,
+        3,
+        tokenURI
+      );
       await DbiliaToken.connect(dbilia).claimToken([1, 2], user2.address);
     });
 
@@ -582,14 +590,6 @@ describe("DbiliaToken contract", function () {
           royaltyPercentage,
           user1.address,
           productId,
-          3,
-          tokenURI
-        );
-        await DbiliaToken.connect(dbilia).mintWithUSDw3user(
-          royaltyReceiverId,
-          royaltyPercentage,
-          user1.address,
-          productId,
           4,
           tokenURI
         );
@@ -598,7 +598,14 @@ describe("DbiliaToken contract", function () {
         await expect(
           DbiliaToken.connect(dbilia).claimToken([1, 2, 3], user2.address)
         ).to.be.revertedWith("Only web2 users token can be claimed");
-      })
+      });
+
+      it("Only can claim tokens Dbilia owned", async function () {
+        await DbiliaToken.connect(dbilia).transferFrom(dbilia.address, user1.address, 3);
+        await expect(
+          DbiliaToken.connect(dbilia).claimToken([3], user2.address)
+        ).to.be.revertedWith("Dbilia wallet does not own this token");
+      });
     });
     
   });
