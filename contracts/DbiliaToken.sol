@@ -325,15 +325,22 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     emit ChangeTokenOwnership(_tokenId, _newOwnerId, _newOwner, block.timestamp);
   }
 
-  function claimToken(uint256[] memory tokenIds, address w3user) public onlyDbilia {
-    for (uint i = 0; i < tokenIds.length; i++) {
-      require(!tokenOwners[tokenIds[i]].isW3user, "Only web2 users token can be claimed");
-      require(ownerOf(tokenIds[i]) == dbiliaTrust, "Dbilia wallet does not own this token");
-      if (w3user != address(0)) {
-        _transfer(dbiliaTrust, w3user, tokenIds[i]);
-        tokenOwners[tokenIds[i]].isW3user = true;
-        tokenOwners[tokenIds[i]].w2owner = "";
-        tokenOwners[tokenIds[i]].w3owner = w3user;
+  /**
+    * Check product edition has already been minted
+    *
+    * @param _tokenIDs token id array
+    * @param _w3user w3user's address
+    */
+  function claimToken(uint256[] memory _tokenIDs, address _w3user) public onlyDbilia {
+    for (uint i = 0; i < _tokenIDs.length; i++) {
+      uint256 tokenId = _tokenIDs[i];
+      require(!tokenOwners[tokenId].isW3user, "Only web2 users token can be claimed");
+      require(ownerOf(tokenId) == dbiliaTrust, "Dbilia wallet does not own this token");
+      if (_w3user != address(0)) {
+        _transfer(dbiliaTrust, _w3user, tokenId);
+        tokenOwners[tokenId].isW3user = true;
+        tokenOwners[tokenId].w2owner = "";
+        tokenOwners[tokenId].w3owner = _w3user;
       }
     }  
   }  
