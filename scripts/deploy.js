@@ -11,8 +11,13 @@ async function main() {
     const DbiliaToken = await Dbilia.deploy("Dbilia", "NFT", 25);
   
     await DbiliaToken.deployed();
-  
     console.log("DbiliaToken deployed to:", DbiliaToken.address);
+
+    const Marketplace = await hre.ethers.getContractFactory("Marketplace");
+    const MarketplaceContract = await Marketplace.deploy(DbiliaToken.address);
+
+    await MarketplaceContract.deployed();
+    console.log("MarketplaceContract deployed to:", MarketplaceContract.address);
   }
   
   // We recommend this pattern to be able to use async/await everywhere
