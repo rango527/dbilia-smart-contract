@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan");
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -23,6 +24,12 @@ module.exports = {
       forking: {
         url: "https://kovan.infura.io/v3/9a755ff3354b427aaab1837447d93a46",
       }
+    },
+    kovan: {
+      url: "https://kovan.infura.io/v3/9a755ff3354b427aaab1837447d93a46",
+      accounts: {
+        mnemonic: process.env.MNEMONIC,
+      }
     }
   },
   solidity: {
@@ -36,6 +43,9 @@ module.exports = {
   },
   mocha: {
     timeout: 50000
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_KEY
   }
 };
 
