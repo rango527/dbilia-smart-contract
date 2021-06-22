@@ -84,8 +84,8 @@ contract Marketplace is PriceConsumerV3 {
     * @param _priceUSD price in USD to sell
     */
     function setForSaleWithUSD(uint256 _tokenId, uint256 _priceUSD) public isActive onlyDbilia {  
-        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
         require(_tokenId > 0, "token id is zero or lower");
+        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
         require(_priceUSD > 0, "price is zero or lower");
         require(
             dbiliaToken.isApprovedForAll(dbiliaToken.dbiliaTrust(), address(this)),
@@ -93,6 +93,17 @@ contract Marketplace is PriceConsumerV3 {
         );        
         tokenPriceUSD[_tokenId] = _priceUSD;   
         emit SetForSale(_tokenId, _priceUSD, msg.sender, block.timestamp);
+    }
+
+    function removeSetForSaleUSD(uint256 _tokenId) public isActive onlyDbilia {
+        require(_tokenId > 0, "token id is zero or lower");
+        require(tokenPriceUSD[_tokenId] > 0, "token has not set for sale");
+        require(
+            dbiliaToken.isApprovedForAll(dbiliaToken.dbiliaTrust(), address(this)),
+            "Dbilia did not approve Marketplace contract"
+        );
+        tokenPriceUSD[_tokenId] = 0;
+        emit SetForSale(_tokenId, 0, msg.sender, block.timestamp);
     }
 
   /**
@@ -106,8 +117,8 @@ contract Marketplace is PriceConsumerV3 {
     * @param _priceUSD price in USD to sell
     */
     function setForSaleWithETH(uint256 _tokenId, uint256 _priceUSD) public isActive {  
-        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
         require(_tokenId > 0, "token id is zero or lower");
+        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
         require(_priceUSD > 0, "price is zero or lower");
         address owner = dbiliaToken.ownerOf(_tokenId);    
         require(owner == msg.sender, "caller is not a token owner");
@@ -116,6 +127,18 @@ contract Marketplace is PriceConsumerV3 {
         );       
         tokenPriceUSD[_tokenId] = _priceUSD;
         emit SetForSale(_tokenId, _priceUSD, msg.sender, block.timestamp);
+    }
+
+    function removeSetForSaleETH(uint256 _tokenId) public isActive {
+        require(_tokenId > 0, "token id is zero or lower");
+        require(tokenPriceUSD[_tokenId] > 0, "token has not set for sale");
+        address owner = dbiliaToken.ownerOf(_tokenId);
+        require(owner == msg.sender, "caller is not a token owner");
+        require(dbiliaToken.isApprovedForAll(msg.sender, address(this)),
+                "token owner did not approve Marketplace contract"
+        );
+        tokenPriceUSD[_tokenId] = 0;
+        emit SetForSale(_tokenId, 0, msg.sender, block.timestamp);
     }
 
   /**

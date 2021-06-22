@@ -85,6 +85,72 @@ describe("MarketPlace contract", function () {
     });
   });
 
+  describe("Token owner remove price with USD for sale", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 105; // 10.5%
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const priceUSD = 500;
+
+    beforeEach(async function () {
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(user1).mintWithETH(
+        royaltyReceiverId,
+        royaltyPercentage,
+        productId,
+        edition,
+        tokenURI
+      )).to.emit(
+        DbiliaToken,
+        "MintWithETH"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition, block.timestamp+1);
+    });
+
+    describe("Success", function () {
+      it("Should track remove tokens price", async function () {
+        await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, priceUSD, user1.address, block.timestamp+1);
+        expect(await Marketplace.connect(user1).removeSetForSaleETH(1)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, 0, user1.address, block.timestamp+2);
+        const tokenPrice = await Marketplace.tokenPriceUSD(1);
+        expect(tokenPrice).to.equal(0);
+      });
+    });
+
+    describe("Fail", function () {
+      it("Should fail if the token has not set for sale", async function () {
+        await expect(
+          Marketplace.connect(user1).removeSetForSaleETH(1)
+        ).to.be.revertedWith("token has not set for sale");
+      });
+
+      it("Should fail if the token id is zero or lower", async function () {
+        await expect(
+          Marketplace.connect(user1).removeSetForSaleETH(0)
+        ).to.be.revertedWith("token id is zero or lower");
+      });
+
+      it("Should fail if the caller is not the token owner", async function () {
+        await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, priceUSD, user1.address, block.timestamp+1);
+        await expect(
+          Marketplace.connect(user2).removeSetForSaleETH(1)
+        ).to.be.revertedWith("caller is not a token owner");
+      });
+    });
+  });
+
   describe("w2user is purchasing With USD if seller is a web2 user", function () {
     const priceUSD = 500;
     const buyerId = "6097cf186eaef77320e81fdd";
