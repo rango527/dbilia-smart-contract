@@ -53,7 +53,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     uint256 _tokenId, 
     string _royaltyReceiverId,
     uint8 _royaltyPercentage,
-    address _minter,
+    address indexed _minter,
     string _productId, 
     uint32 _edition, 
     uint256 _timestamp
@@ -62,7 +62,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     uint256 _tokenId, 
     string _royaltyReceiverId,
     uint8 _royaltyPercentage,
-    address _minterAddress, 
+    address indexed _minterAddress, 
     string _productId, 
     uint32 _edition, 
     uint256 _timestamp
@@ -70,7 +70,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   event ChangeTokenOwnership(
     uint256 _tokenId, 
     string _newOwnerId,
-    address _newOwner,
+    address indexed _newOwner,
     uint256 _timestamp
   );  
   /**
