@@ -570,7 +570,7 @@ describe("DbiliaToken contract", function () {
         expect(token2owner.isW3user).to.equal(true);
         expect(token2owner.w2owner).to.equal('');
       });
-  
+
       it('Should track balance', async function () {
         const balance = await DbiliaToken.balanceOf(user2.address);
         expect(balance.toString()).to.equal("2");
@@ -607,6 +607,5 @@ describe("DbiliaToken contract", function () {
         ).to.be.revertedWith("Dbilia wallet does not own this token");
       });
     });
-    
   });
 });

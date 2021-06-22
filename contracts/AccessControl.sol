@@ -37,7 +37,7 @@ contract AccessControl {
             dbiliaTrust = _newDbiliaTrust;
         }
     }
-    
+
     function changeMarketplace(address _newMarketplace) onlyCEO public {
         if (_newMarketplace != address(0)) {
             marketplace = _newMarketplace;
