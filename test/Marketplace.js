@@ -80,7 +80,73 @@ describe("MarketPlace contract", function () {
       it("Should fail if the caller is not the token owner", async function () {
         await expect(
           Marketplace.connect(user2).setForSaleWithETH(1, priceUSD)
-        ).to.be.revertedWith("caller is not a token owner"); 
+        ).to.be.revertedWith("caller is not a token owner");
+      });
+    });
+  });
+
+  describe("Token owner remove price with USD for sale", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 105; // 10.5%
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const priceUSD = 500;
+
+    beforeEach(async function () {
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(user1).mintWithETH(
+        royaltyReceiverId,
+        royaltyPercentage,
+        productId,
+        edition,
+        tokenURI
+      )).to.emit(
+        DbiliaToken,
+        "MintWithETH"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition, block.timestamp+1);
+    });
+
+    describe("Success", function () {
+      it("Should track remove tokens price", async function () {
+        await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, priceUSD, user1.address, block.timestamp+1);
+        expect(await Marketplace.connect(user1).removeSetForSaleETH(1)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, 0, user1.address, block.timestamp+2);
+        const tokenPrice = await Marketplace.tokenPriceUSD(1);
+        expect(tokenPrice).to.equal(0);
+      });
+    });
+
+    describe("Fail", function () {
+      it("Should fail if the token has not set for sale", async function () {
+        await expect(
+          Marketplace.connect(user1).removeSetForSaleETH(1)
+        ).to.be.revertedWith("token has not set for sale");
+      });
+
+      it("Should fail if the token id is zero or lower", async function () {
+        await expect(
+          Marketplace.connect(user1).removeSetForSaleETH(0)
+        ).to.be.revertedWith("token id is zero or lower");
+      });
+
+      it("Should fail if the caller is not the token owner", async function () {
+        await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, priceUSD, user1.address, block.timestamp+1);
+        await expect(
+          Marketplace.connect(user2).removeSetForSaleETH(1)
+        ).to.be.revertedWith("caller is not a token owner");
       });
     });
   });
@@ -114,7 +180,6 @@ describe("MarketPlace contract", function () {
     beforeEach(async function () {
       await DbiliaToken.connect(dbilia).setApprovalForAll(Marketplace.address, true);
       await Marketplace.connect(dbilia).setForSaleWithUSD(1, priceUSD);
-      
     });
 
     describe("Success", function () {
@@ -136,13 +201,13 @@ describe("MarketPlace contract", function () {
       it("Should fail if the seller is not selling the token", async function () {
         await expect(
           Marketplace.connect(dbilia).purchaseWithUSDw2user(2, buyerId)
-        ).to.be.revertedWith("seller is not selling this token"); 
+        ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if byerId is missing", async function () {
         await expect(
           Marketplace.connect(dbilia).purchaseWithUSDw2user(1, "")
-        ).to.be.revertedWith("buyerId Id is empty"); 
+        ).to.be.revertedWith("buyerId Id is empty");
       });
     });
   });
@@ -197,13 +262,13 @@ describe("MarketPlace contract", function () {
       it("Should fail if the seller is not selling the token", async function () {
         await expect(
           Marketplace.connect(dbilia).purchaseWithUSDw2user(2, buyerId)
-        ).to.be.revertedWith("seller is not selling this token"); 
+        ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if byerId is missing", async function () {
         await expect(
           Marketplace.connect(dbilia).purchaseWithUSDw2user(1, "")
-        ).to.be.revertedWith("buyerId Id is empty"); 
+        ).to.be.revertedWith("buyerId Id is empty");
       });
     });
   });
@@ -236,7 +301,6 @@ describe("MarketPlace contract", function () {
     beforeEach(async function () {
       await DbiliaToken.connect(dbilia).setApprovalForAll(Marketplace.address, true);
       await Marketplace.connect(dbilia).setForSaleWithUSD(1, priceUSD);
-      
     });
 
     describe("Success", function () {
@@ -276,7 +340,7 @@ describe("MarketPlace contract", function () {
       it("Should fail if the seller is not selling the token", async function () {
         await expect(
           Marketplace.connect(dbilia).purchaseWithUSDw3user(2, user2.address)
-        ).to.be.revertedWith("seller is not selling this token"); 
+        ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if other accounts trying to trigger", async function () {
@@ -342,7 +406,7 @@ describe("MarketPlace contract", function () {
       it("Should fail if the seller is not selling the token", async function () {
         await expect(
           Marketplace.connect(dbilia).purchaseWithUSDw3user(2, user2.address)
-        ).to.be.revertedWith("seller is not selling this token"); 
+        ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if other accounts trying to trigger", async function () {
@@ -351,7 +415,7 @@ describe("MarketPlace contract", function () {
         ).to.be.revertedWith("caller is not one of dbilia accounts");
       });
     });
-  });  
+  });
 
   describe("w3user is purchasing With ETH if seller is a web2 user", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
@@ -441,7 +505,7 @@ describe("MarketPlace contract", function () {
             .add(royalty)
             .add(sellerReceiveAmount)
         ).to.equal(BigNumber.from(balance_dbilia_afterSelling));
-      });     
+      });
       it("Should check balance", async function () {
         const balance = await DbiliaToken.balanceOf(user2.address);
         expect(balance.toString()).to.equal("1");
@@ -475,15 +539,15 @@ describe("MarketPlace contract", function () {
     });
   });
 
-  describe("w3user is purchasing With ETH if seller is a web3 user", function () {    
+  describe("w3user is purchasing With ETH if seller is a web3 user", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
     const royaltyPercentage = 105; // 10.5%
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
-    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";    
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
     const priceUSD = 2000;
     let currentPriceOfETHtoUSD;
-    
+
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
       expect(await DbiliaToken.connect(user1).mintWithETH(
@@ -511,14 +575,14 @@ describe("MarketPlace contract", function () {
       let balance_dbilia;
       let balance_user1;
 
-      beforeEach(async function () {       
+      beforeEach(async function () {
         balance_dbilia = await dbilia.getBalance();
         balance_user1 = await user1.getBalance();
 
         const flatFee = await DbiliaToken.feePercent();
         const buyerFee = (priceUSD * flatFee) / 1000;
         const buyerTotalToWei = BigNumber.from(priceUSD + buyerFee).mul(BigNumber.from(1e18.toString())).div(BigNumber.from(currentPriceOfETHtoUSD));
-    
+
         royalty = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(royaltyPercentage)).div(1000);
         fee = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(feePercent)).div(500);
         sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
@@ -563,14 +627,14 @@ describe("MarketPlace contract", function () {
         const payAmount = BigNumber.from((10**18).toString()); // 1 ETH
         await expect(
           Marketplace.connect(user2).purchaseWithETHw3user(2, { value: payAmount })
-        ).to.be.revertedWith("seller is not selling this token"); 
+        ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if the pay amount is less than the token price", async function () {
         const lessPayAmount = BigNumber.from((10**17).toString());
         await expect(
           Marketplace.connect(user2).purchaseWithETHw3user(1, { value: lessPayAmount })
-        ).to.be.revertedWith("not enough of ETH being sent"); 
+        ).to.be.revertedWith("not enough of ETH being sent");
       });
     });
   });

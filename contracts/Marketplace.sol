@@ -15,13 +15,13 @@ contract Marketplace is PriceConsumerV3 {
 
     // Events
     event SetForSale(
-        uint256 _tokenId, 
+        uint256 _tokenId,
         uint256 _priceUSD,
         address indexed _seller,
         uint256 _timestamp
     );
     event PurchaseWithUSD(
-        uint256 _tokenId, 
+        uint256 _tokenId,
         address indexed _buyer,
         string _buyerId,
         bool _isW3user,
@@ -30,7 +30,7 @@ contract Marketplace is PriceConsumerV3 {
         uint256 _timestamp
     );
     event PurchaseWithETH(
-        uint256 _tokenId, 
+        uint256 _tokenId,
         address indexed _buyer,
         bool _isW3user,
         address _w3owner,
@@ -40,7 +40,7 @@ contract Marketplace is PriceConsumerV3 {
         uint256 _sellerReceives,
         uint256 _timestamp
     );
-    
+
     modifier isActive {
         require(!dbiliaToken.isMaintaining());
         _;
@@ -48,7 +48,7 @@ contract Marketplace is PriceConsumerV3 {
 
     modifier onlyDbilia() {
         require(
-            msg.sender == dbiliaToken.owner() || 
+            msg.sender == dbiliaToken.owner() ||
             msg.sender == dbiliaToken.dbiliaTrust(),
             "caller is not one of dbilia accounts"
         );
@@ -60,7 +60,7 @@ contract Marketplace is PriceConsumerV3 {
     }
 
     /**
-        SET FOR SALE FUNCTIONS 
+        SET FOR SALE FUNCTIONS
         - When w2 or w3user wants to put it up for sale
         - trigger getTokenOwnership() by passing in tokenId and find if it belongs to w2 or w3user
         - if w2 or w3user wants to pay in USD, they pay gas fee to Dbilia first
@@ -83,16 +83,27 @@ contract Marketplace is PriceConsumerV3 {
     * @param _tokenId token id to sell
     * @param _priceUSD price in USD to sell
     */
-    function setForSaleWithUSD(uint256 _tokenId, uint256 _priceUSD) public isActive onlyDbilia {  
-        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
+    function setForSaleWithUSD(uint256 _tokenId, uint256 _priceUSD) public isActive onlyDbilia {
         require(_tokenId > 0, "token id is zero or lower");
+        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
         require(_priceUSD > 0, "price is zero or lower");
         require(
             dbiliaToken.isApprovedForAll(dbiliaToken.dbiliaTrust(), address(this)),
             "Dbilia did not approve Marketplace contract"
-        );        
-        tokenPriceUSD[_tokenId] = _priceUSD;   
+        );
+        tokenPriceUSD[_tokenId] = _priceUSD;
         emit SetForSale(_tokenId, _priceUSD, msg.sender, block.timestamp);
+    }
+
+    function removeSetForSaleUSD(uint256 _tokenId) public isActive onlyDbilia {
+        require(_tokenId > 0, "token id is zero or lower");
+        require(tokenPriceUSD[_tokenId] > 0, "token has not set for sale");
+        require(
+            dbiliaToken.isApprovedForAll(dbiliaToken.dbiliaTrust(), address(this)),
+            "Dbilia did not approve Marketplace contract"
+        );
+        tokenPriceUSD[_tokenId] = 0;
+        emit SetForSale(_tokenId, 0, msg.sender, block.timestamp);
     }
 
   /**
@@ -100,26 +111,38 @@ contract Marketplace is PriceConsumerV3 {
     *
     * Preconditions
     * 1. call isApprovedForAll() to check w3user has approved the contract on his behalf
-    * 2. if not, trigger setApprovalForAll() from w3user   
+    * 2. if not, trigger setApprovalForAll() from w3user
     *
     * @param _tokenId token id to sell
     * @param _priceUSD price in USD to sell
     */
-    function setForSaleWithETH(uint256 _tokenId, uint256 _priceUSD) public isActive {  
-        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
+    function setForSaleWithETH(uint256 _tokenId, uint256 _priceUSD) public isActive {
         require(_tokenId > 0, "token id is zero or lower");
+        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
         require(_priceUSD > 0, "price is zero or lower");
-        address owner = dbiliaToken.ownerOf(_tokenId);    
+        address owner = dbiliaToken.ownerOf(_tokenId);
         require(owner == msg.sender, "caller is not a token owner");
-        require(dbiliaToken.isApprovedForAll(msg.sender, address(this)), 
+        require(dbiliaToken.isApprovedForAll(msg.sender, address(this)),
                 "token owner did not approve Marketplace contract"
-        );       
+        );
         tokenPriceUSD[_tokenId] = _priceUSD;
         emit SetForSale(_tokenId, _priceUSD, msg.sender, block.timestamp);
     }
 
+    function removeSetForSaleETH(uint256 _tokenId) public isActive {
+        require(_tokenId > 0, "token id is zero or lower");
+        require(tokenPriceUSD[_tokenId] > 0, "token has not set for sale");
+        address owner = dbiliaToken.ownerOf(_tokenId);
+        require(owner == msg.sender, "caller is not a token owner");
+        require(dbiliaToken.isApprovedForAll(msg.sender, address(this)),
+                "token owner did not approve Marketplace contract"
+        );
+        tokenPriceUSD[_tokenId] = 0;
+        emit SetForSale(_tokenId, 0, msg.sender, block.timestamp);
+    }
+
   /**
-    * w2user purchasing in USD 
+    * w2user purchasing in USD
     * function triggered by Dbilia
     *
     * Preconditions
@@ -140,18 +163,18 @@ contract Marketplace is PriceConsumerV3 {
     * @param _tokenId token id to buy
     * @param _buyerId buyer's w2user internal id
     */
-    function purchaseWithUSDw2user(uint256 _tokenId, string memory _buyerId) 
-        public 
+    function purchaseWithUSDw2user(uint256 _tokenId, string memory _buyerId)
+        public
         isActive
-        onlyDbilia    
-    {       
+        onlyDbilia
+    {
         require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
         require(bytes(_buyerId).length > 0, "buyerId Id is empty");
 
         address owner = dbiliaToken.ownerOf(_tokenId);
-        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId); 
+        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId);
 
-        if (isW3user) {            
+        if (isW3user) {
             require(owner == w3owner, "wrong owner");
             require(w3owner != address(0), "w3owner is empty");
             dbiliaToken.safeTransferFrom(w3owner, dbiliaToken.dbiliaTrust(), _tokenId);
@@ -162,21 +185,21 @@ contract Marketplace is PriceConsumerV3 {
             require(bytes(w2owner).length > 0, "w2owner is empty");
             dbiliaToken.changeTokenOwnership(_tokenId, address(0), _buyerId);
             tokenPriceUSD[_tokenId] = 0;
-        }      
+        }
 
         emit PurchaseWithUSD(
-            _tokenId, 
-            address(0), 
-            _buyerId, 
-            isW3user, 
-            w3owner, 
-            w2owner, 
+            _tokenId,
+            address(0),
+            _buyerId,
+            isW3user,
+            w3owner,
+            w2owner,
             block.timestamp
-        );  
+        );
     }
 
   /**
-    * w3user purchasing in USD 
+    * w3user purchasing in USD
     * function triggered by Dbilia
     *
     * Preconditions
@@ -197,18 +220,18 @@ contract Marketplace is PriceConsumerV3 {
     * @param _tokenId token id to buy
     * @param _buyer buyer's w3user id
     */
-    function purchaseWithUSDw3user(uint256 _tokenId, address _buyer) 
-        public 
+    function purchaseWithUSDw3user(uint256 _tokenId, address _buyer)
+        public
         isActive
-        onlyDbilia    
-    {       
+        onlyDbilia
+    {
         require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
         require(_buyer != address(0), "buyer address is empty");
 
         address owner = dbiliaToken.ownerOf(_tokenId);
-        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId); 
+        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId);
 
-        if (isW3user) {           
+        if (isW3user) {
             require(owner == w3owner, "wrong owner");
             require(w3owner != address(0), "w3owner is empty");
             dbiliaToken.safeTransferFrom(w3owner, _buyer, _tokenId);
@@ -220,21 +243,21 @@ contract Marketplace is PriceConsumerV3 {
             dbiliaToken.safeTransferFrom(dbiliaToken.dbiliaTrust(), _buyer, _tokenId);
             dbiliaToken.changeTokenOwnership(_tokenId, _buyer, "");
             tokenPriceUSD[_tokenId] = 0;
-        }      
+        }
 
         emit PurchaseWithUSD(
-            _tokenId, 
-            _buyer, 
-            "", 
-            isW3user, 
-            w3owner, 
-            w2owner, 
+            _tokenId,
+            _buyer,
+            "",
+            isW3user,
+            w3owner,
+            w2owner,
             block.timestamp
-        );  
+        );
     }
 
   /**
-    * w3user purchasing in ETH 
+    * w3user purchasing in ETH
     * function triggered by w3user
     *
     * Preconditions
@@ -249,18 +272,18 @@ contract Marketplace is PriceConsumerV3 {
     *    - seller receives = (tokenPriceUSD - seller 2.5% fee - royalty)
     *    - for royalty, use royaltyReceivers(tokenId)
     * 2. increase the royalty receiver's internal ETH wallet balance
-    *    - for royalty, use royaltyReceivers(tokenId)    
+    *    - for royalty, use royaltyReceivers(tokenId)
     *    - use royaltyAmount from its event
     *
     * @param _tokenId token id to buy
     */
-    function purchaseWithETHw3user(uint256 _tokenId) public payable isActive {   
+    function purchaseWithETHw3user(uint256 _tokenId) public payable isActive {
         require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
-    
+
         _validateAmount(_tokenId);
 
         address owner = dbiliaToken.ownerOf(_tokenId);
-        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId); 
+        (bool isW3user, address w3owner, string memory w2owner) = dbiliaToken.getTokenOwnership(_tokenId);
 
         if (isW3user) {
             require(owner == w3owner, "wrong owner");
@@ -274,23 +297,23 @@ contract Marketplace is PriceConsumerV3 {
             dbiliaToken.safeTransferFrom(dbiliaToken.dbiliaTrust(), msg.sender, _tokenId);
             dbiliaToken.changeTokenOwnership(_tokenId, msg.sender, "");
             tokenPriceUSD[_tokenId] = 0;
-        }      
-        
+        }
+
         uint256 fee = _payBuyerSellerFee();
-        uint256 royaltyAmount = _sendRoyalty(_tokenId);   
+        uint256 royaltyAmount = _sendRoyalty(_tokenId);
         uint256 sellerReceiveAmount = msg.value.sub(fee.add(royaltyAmount));
-        
+
         _sendToSeller(sellerReceiveAmount, isW3user, w3owner);
 
         emit PurchaseWithETH(
-            _tokenId, 
-            msg.sender, 
+            _tokenId,
+            msg.sender,
             isW3user,
-            w3owner, 
-            w2owner, 
+            w3owner,
+            w2owner,
             fee,
-            royaltyAmount, 
-            sellerReceiveAmount, 
+            royaltyAmount,
+            sellerReceiveAmount,
             block.timestamp
         );
     }
@@ -302,16 +325,16 @@ contract Marketplace is PriceConsumerV3 {
     * @param _tokenId token id
     */
     function _validateAmount(uint256 _tokenId) private {
-        uint256 tokenPrice = tokenPriceUSD[_tokenId];       
+        uint256 tokenPrice = tokenPriceUSD[_tokenId];
         int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
         uint256 buyerFee = tokenPrice.mul(dbiliaToken.feePercent()).div(1000);
         uint256 buyerTotal = tokenPrice.add(buyerFee) * 10**18;
-        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));        
+        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
         require(msg.value >= buyerTotalToWei, "not enough of ETH being sent");
-    }  
+    }
 
   /**
-    * Pay flat fees to Dbilia 
+    * Pay flat fees to Dbilia
     * i.e. buyer fee + seller fee = 5%
     */
     function _payBuyerSellerFee() private returns (uint256) {
@@ -319,7 +342,7 @@ contract Marketplace is PriceConsumerV3 {
         uint256 fee = msg.value.mul(feePercent.mul(2)).div(1000);
         _send(fee, dbiliaToken.dbiliaTrust());
         return fee;
-    }  
+    }
 
   /**
     * Pay royalty to creator
@@ -332,25 +355,25 @@ contract Marketplace is PriceConsumerV3 {
          uint256 royalty = msg.value.mul(percentage).div(1000);
         _send(royalty, dbiliaToken.dbiliaTrust());
         return royalty;
-    } 
+    }
 
   /**
     * Send money to seller
     * Dbilia keeps it if seller is w2user
-    * 
+    *
     * @param sellerReceiveAmount total - (fee + royalty)
     * @param _isW3user w3user or w3user
     * @param _w3owner w3user EOA
     */
     function _sendToSeller(
-        uint256 sellerReceiveAmount, 
-        bool _isW3user, 
+        uint256 sellerReceiveAmount,
+        bool _isW3user,
         address _w3owner
-    ) 
-        private 
+    )
+        private
     {
         _send(sellerReceiveAmount, _isW3user ? _w3owner : dbiliaToken.dbiliaTrust());
-    }  
+    }
 
   /**
     * Low-level call methods instead of using transfer()
@@ -358,7 +381,7 @@ contract Marketplace is PriceConsumerV3 {
     * @param _amount amount in ETH
     * @param _to receiver
     */
-    function _send(uint256 _amount, address _to) private {    
+    function _send(uint256 _amount, address _to) private {
         (bool success, ) = _to.call{value:_amount}("");
         require(success, "Transfer failed.");
     }
