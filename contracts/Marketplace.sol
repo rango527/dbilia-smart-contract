@@ -42,6 +42,14 @@ contract Marketplace is PriceConsumerV3 {
         uint256 _sellerReceives,
         uint256 _timestamp
     );
+    event BiddingWithETH(
+        uint256 _tokenId,
+        address indexed _bidder,
+        uint256 _fee,
+        uint256 _creatorReceives,
+        uint256 _sellerReceives,
+        uint256 _timestamp
+    );
 
     modifier isActive {
         require(!dbiliaToken.isMaintaining());
@@ -347,6 +355,33 @@ contract Marketplace is PriceConsumerV3 {
         );
     }
 
+    function placeBidWithETHw3user(uint256 _tokenId, uint256 _bidPriceUSD) public payable isActive {
+        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
+        // only non-auction items can be purchased from w3user
+        require(tokenOnAuction[_tokenId] == true, "this token is not on auction");
+
+        _validateBidAmount(_bidPriceUSD);
+
+        uint256 feePercent = dbiliaToken.feePercent();
+        uint256 fee = msg.value.mul(feePercent.mul(2)).div(1000);
+
+        (, uint8 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
+        uint256 royaltyAmount = msg.value.mul(percentage).div(1000);
+
+        uint256 sellerReceiveAmount = msg.value.sub(fee.add(royaltyAmount));
+
+        _send(msg.value, dbiliaToken.dbiliaTrust());
+
+        emit BiddingWithETH(
+            _tokenId,
+            msg.sender,
+            fee,
+            royaltyAmount,
+            sellerReceiveAmount,
+            block.timestamp
+        );
+    }
+
   /**
     * Validate user purchasing in ETH matches with USD conversion using chainlink
     * checks buyer fee of the token price as well (i.e. 2.5%)
@@ -358,6 +393,20 @@ contract Marketplace is PriceConsumerV3 {
         int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
         uint256 buyerFee = tokenPrice.mul(dbiliaToken.feePercent()).div(1000);
         uint256 buyerTotal = tokenPrice.add(buyerFee) * 10**18;
+        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
+        require(msg.value >= buyerTotalToWei, "not enough of ETH being sent");
+    }
+
+  /**
+    * Validate user bidding in ETH matches with USD conversion using chainlink
+    * checks buyer fee of the token price as well (i.e. 2.5%)
+    *
+    * @param _bidPriceUSD bidding price in usd
+    */
+    function _validateBidAmount(uint256 _bidPriceUSD) private {
+        int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
+        uint256 buyerFee = _bidPriceUSD.mul(dbiliaToken.feePercent()).div(1000);
+        uint256 buyerTotal = _bidPriceUSD.add(buyerFee) * 10**18;
         uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
         require(msg.value >= buyerTotalToWei, "not enough of ETH being sent");
     }

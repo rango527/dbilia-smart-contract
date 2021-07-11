@@ -326,10 +326,10 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   }
 
   /**
-    * Check product edition has already been minted
+    * Claim ownership of token
     *
     * @param _tokenIDs token id array
-    * @param _w3user w3user's address
+    * @param _w3user receiver address
     */
   function claimToken(uint256[] memory _tokenIDs, address _w3user) public onlyDbilia {
     for (uint i = 0; i < _tokenIDs.length; i++) {
