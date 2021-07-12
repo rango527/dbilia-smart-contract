@@ -48,6 +48,7 @@ describe("MarketPlace contract", function () {
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
     const priceUSD = 500;
+    const auction = false;
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
@@ -67,10 +68,10 @@ describe("MarketPlace contract", function () {
       it("Should track tokens price", async function () {
         await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD)).to.emit(
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
           Marketplace,
           "SetForSale"
-        ).withArgs(1, priceUSD, user1.address, block.timestamp+1);
+        ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
         const tokenPrice = await Marketplace.tokenPriceUSD(1);
         expect(tokenPrice).to.equal(priceUSD);
       });
@@ -79,7 +80,7 @@ describe("MarketPlace contract", function () {
     describe("Fail", function () {
       it("Should fail if the caller is not the token owner", async function () {
         await expect(
-          Marketplace.connect(user2).setForSaleWithETH(1, priceUSD)
+          Marketplace.connect(user2).setForSaleWithETH(1, priceUSD, auction)
         ).to.be.revertedWith("caller is not a token owner");
       });
     });
@@ -92,6 +93,7 @@ describe("MarketPlace contract", function () {
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
     const priceUSD = 500;
+    const auction = true;
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
@@ -111,14 +113,14 @@ describe("MarketPlace contract", function () {
       it("Should track remove tokens price", async function () {
         await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD)).to.emit(
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
           Marketplace,
           "SetForSale"
-        ).withArgs(1, priceUSD, user1.address, block.timestamp+1);
+        ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
         expect(await Marketplace.connect(user1).removeSetForSaleETH(1)).to.emit(
           Marketplace,
           "SetForSale"
-        ).withArgs(1, 0, user1.address, block.timestamp+2);
+        ).withArgs(1, 0, false, user1.address, block.timestamp+2);
         const tokenPrice = await Marketplace.tokenPriceUSD(1);
         expect(tokenPrice).to.equal(0);
       });
@@ -140,10 +142,10 @@ describe("MarketPlace contract", function () {
       it("Should fail if the caller is not the token owner", async function () {
         await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD)).to.emit(
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
           Marketplace,
           "SetForSale"
-        ).withArgs(1, priceUSD, user1.address, block.timestamp+1);
+        ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
         await expect(
           Marketplace.connect(user2).removeSetForSaleETH(1)
         ).to.be.revertedWith("caller is not a token owner");
@@ -161,6 +163,7 @@ describe("MarketPlace contract", function () {
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const auction = false;
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
@@ -179,7 +182,7 @@ describe("MarketPlace contract", function () {
 
     beforeEach(async function () {
       await DbiliaToken.connect(dbilia).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(dbilia).setForSaleWithUSD(1, priceUSD);
+      await Marketplace.connect(dbilia).setForSaleWithUSD(1, priceUSD, auction);
     });
 
     describe("Success", function () {
@@ -221,6 +224,7 @@ describe("MarketPlace contract", function () {
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const auction = false;
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
@@ -238,7 +242,7 @@ describe("MarketPlace contract", function () {
 
     beforeEach(async function () {
       await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD);
+      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
     });
 
     describe("Success", function () {
@@ -282,6 +286,7 @@ describe("MarketPlace contract", function () {
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const auction = false;
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
@@ -300,7 +305,7 @@ describe("MarketPlace contract", function () {
 
     beforeEach(async function () {
       await DbiliaToken.connect(dbilia).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(dbilia).setForSaleWithUSD(1, priceUSD);
+      await Marketplace.connect(dbilia).setForSaleWithUSD(1, priceUSD, auction);
     });
 
     describe("Success", function () {
@@ -359,6 +364,7 @@ describe("MarketPlace contract", function () {
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const auction = false;
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
@@ -376,7 +382,7 @@ describe("MarketPlace contract", function () {
 
     beforeEach(async function () {
       await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD);
+      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
     });
 
     describe("Success", function () {
@@ -426,6 +432,7 @@ describe("MarketPlace contract", function () {
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
     const priceUSD = 2000;
     let currentPriceOfETHtoUSD;
+    const auction = false;
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock("latest");
@@ -457,7 +464,7 @@ describe("MarketPlace contract", function () {
         Marketplace.address,
         true
       );
-      await Marketplace.connect(dbilia).setForSaleWithETH(1, priceUSD);
+      await Marketplace.connect(dbilia).setForSaleWithETH(1, priceUSD, auction);
     });
 
     describe("Success", function () {
@@ -547,6 +554,7 @@ describe("MarketPlace contract", function () {
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
     const priceUSD = 2000;
     let currentPriceOfETHtoUSD;
+    const auction = false;
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
@@ -565,7 +573,7 @@ describe("MarketPlace contract", function () {
     beforeEach(async function () {
       currentPriceOfETHtoUSD = await Marketplace.getCurrentPriceOfETHtoUSD();
       await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD);
+      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
     });
 
     describe("Success", function () {
@@ -635,6 +643,90 @@ describe("MarketPlace contract", function () {
         await expect(
           Marketplace.connect(user2).purchaseWithETHw3user(1, { value: lessPayAmount })
         ).to.be.revertedWith("not enough of ETH being sent");
+      });
+    });
+  });
+
+  describe("w3user placeBid with ETH", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 105; // 10.5%
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const priceUSD = 500;
+    const auction = true;
+
+    beforeEach(async function () {
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(user1).mintWithETH(
+        royaltyReceiverId,
+        royaltyPercentage,
+        productId,
+        edition,
+        tokenURI
+      )).to.emit(
+        DbiliaToken,
+        "MintWithETH"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition, block.timestamp+1);
+    });
+
+    beforeEach(async function () {
+      currentPriceOfETHtoUSD = await Marketplace.getCurrentPriceOfETHtoUSD();
+      await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
+      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
+    });
+
+    describe("Success", function () {
+      it("Should place bid with ETH for w3user", async function () {
+        let fee;
+        let royalty;
+        let sellerReceiveAmount;
+
+        const flatFee = await DbiliaToken.feePercent();
+        const buyerFee = (priceUSD * flatFee) / 1000;
+        const buyerTotalToWei = BigNumber.from(priceUSD + buyerFee).mul(BigNumber.from(1e18.toString())).div(BigNumber.from(currentPriceOfETHtoUSD));
+
+        royalty = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(royaltyPercentage)).div(1000);
+        fee = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(feePercent)).div(500);
+        sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
+        let block = await ethers.provider.getBlock('latest');
+
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
+
+        expect(await Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD, {
+          value: buyerTotalToWei.toString(),
+        })).to.emit(
+          Marketplace,
+          "BiddingWithETH"
+        ).withArgs(1, user2.address, fee, royalty, sellerReceiveAmount, block.timestamp+2);
+        const tokenPrice = await Marketplace.tokenPriceUSD(1);
+        expect(tokenPrice).to.equal(0);
+      });
+    });
+
+    describe("Fail", function () {
+      it("Should fail if seller is not selling this token", async function () {
+        await expect(
+          Marketplace.connect(user1).placeBidWithETHw3user(0, priceUSD)
+        ).to.be.revertedWith("seller is not selling this token");
+      });
+
+      it("Should fail if this token is not on auction", async function () {
+        await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
+        expect(await Marketplace.connect(user1).removeSetForSaleETH(1)).to.emit(
+          Marketplace,
+          "SetForSale"
+        ).withArgs(1, 0, false, user1.address, block.timestamp+2);
+        await expect(
+          Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD)
+        ).to.be.revertedWith("this token is not on auction");
       });
     });
   });
