@@ -22,13 +22,13 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: "https://kovan.infura.io/v3/9a755ff3354b427aaab1837447d93a46",
+        url: "https://kovan.infura.io/v3/ddcd584d6db4474bb74ba884c5c29080",
       }
     },
     kovan: {
-      url: "https://kovan.infura.io/v3/9a755ff3354b427aaab1837447d93a46",
+      url: "https://kovan.infura.io/v3/ddcd584d6db4474bb74ba884c5c29080",
       accounts: {
-        mnemonic: process.env.MNEMONIC,
+        mnemonic: 'd10e9877879747618f82cc41a126bf1f',
       }
     }
   },
