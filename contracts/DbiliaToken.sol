@@ -18,9 +18,10 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   using Counters for Counters.Counter;
 
   struct RoyaltyReceiver {
+    uint16 percentage;
     string receiverId;
-    uint8 percentage;
   }
+
   struct TokenOwner {
     bool isW3user;
     address w3owner;
@@ -28,9 +29,9 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   }
 
   Counters.Counter private _tokenIds;
-  uint8 public constant ROYALTY_MAX = type(uint8).max;
+  uint16 public constant ROYALTY_MAX = 999;
   uint32 public constant EDITION_MAX = type(uint32).max;
-  uint8 public feePercent;
+  uint16 public feePercent;
 
   // Track royalty receiving address and percentage
   mapping (uint256 => RoyaltyReceiver) public royaltyReceivers;
@@ -43,36 +44,40 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   event MintWithUSDw2user(
     uint256 _tokenId,
     string _royaltyReceiverId,
-    uint8 _royaltyPercentage,
+    uint16 _royaltyPercentage,
     string _minterId,
     string _productId,
     uint32 _edition,
     uint256 _timestamp
   );
+
   event MintWithUSDw3user(
     uint256 _tokenId,
     string _royaltyReceiverId,
-    uint8 _royaltyPercentage,
+    uint16 _royaltyPercentage,
     address indexed _minter,
     string _productId,
     uint32 _edition,
     uint256 _timestamp
   );
+
   event MintWithETH(
     uint256 _tokenId,
     string _royaltyReceiverId,
-    uint8 _royaltyPercentage,
+    uint16 _royaltyPercentage,
     address indexed _minterAddress,
     string _productId,
     uint32 _edition,
     uint256 _timestamp
   );
+
   event ChangeTokenOwnership(
     uint256 _tokenId,
     string _newOwnerId,
     address indexed _newOwner,
     uint256 _timestamp
   );
+
   /**
     * Constructor
     *
@@ -87,7 +92,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   constructor(
     string memory _name,
     string memory _symbol,
-    uint8 _feePercent
+    uint16 _feePercent
   )
     ERC721(_name, _symbol)
     {
@@ -97,7 +102,6 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
   /**
     * Minting paid with USD from w2user
     * Dbilia keeps the token on w2user's behalf
-
     * Precondition
     * 1. user pays gas fee to Dbilia in USD
     *
@@ -110,7 +114,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     */
   function mintWithUSDw2user(
     string memory _royaltyReceiverId,
-    uint8 _royaltyPercentage,
+    uint16 _royaltyPercentage,
     string memory _minterId,
     string memory _productId,
     uint32 _edition,
@@ -123,7 +127,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     require(bytes(_royaltyReceiverId).length > 0, "royalty receiver id is empty");
     require(
       _royaltyPercentage >= 0 && _royaltyPercentage <= ROYALTY_MAX,
-      "royalty percentage is empty or exceeded uint8 max"
+      "royalty percentage is empty or exceeded max"
     );
     require(bytes(_minterId).length > 0, "minter id is empty");
     require(bytes(_productId).length > 0, "product id is empty");
@@ -141,11 +145,16 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
 
     uint256 newTokenId = _tokenIds.current();
     // Track the creator of card
-    royaltyReceivers[newTokenId].receiverId = _royaltyReceiverId;
-    royaltyReceivers[newTokenId].percentage = _royaltyPercentage;
+    royaltyReceivers[newTokenId] = RoyaltyReceiver({
+      receiverId: _royaltyReceiverId,
+      percentage: _royaltyPercentage
+    });
     // Track the owner of token
-    tokenOwners[newTokenId].isW3user = false;
-    tokenOwners[newTokenId].w2owner = _minterId;
+    tokenOwners[newTokenId] = TokenOwner({
+      isW3user: false,
+      w3owner: address(0),
+      w2owner: _minterId
+    });
     // productId and edition are mapped to new token
     productEditions[_productId][_edition] = newTokenId;
     // Dbilia keeps the token on minter's behalf
@@ -158,7 +167,6 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
 /**
     * Minting paid with USD from w3user
     * token is sent to w3user's EOA
-
     * Precondition
     * 1. user pays gas fee to Dbilia in USD
     *
@@ -171,7 +179,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     */
   function mintWithUSDw3user(
     string memory _royaltyReceiverId,
-    uint8 _royaltyPercentage,
+    uint16 _royaltyPercentage,
     address _minter,
     string memory _productId,
     uint32 _edition,
@@ -184,7 +192,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     require(bytes(_royaltyReceiverId).length > 0, "royalty receiver id is empty");
     require(
       _royaltyPercentage >= 0 && _royaltyPercentage <= ROYALTY_MAX,
-      "royalty percentage is empty or exceeded uint8 max"
+      "royalty percentage is empty or exceeded max"
     );
     require(_minter != address(0x0), "minter address is empty");
     require(bytes(_productId).length > 0, "product id is empty");
@@ -202,11 +210,16 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
 
     uint256 newTokenId = _tokenIds.current();
     // Track the creator of card
-    royaltyReceivers[newTokenId].receiverId = _royaltyReceiverId;
-    royaltyReceivers[newTokenId].percentage = _royaltyPercentage;
+    royaltyReceivers[newTokenId] = RoyaltyReceiver({
+      receiverId: _royaltyReceiverId,
+      percentage: _royaltyPercentage
+    });
     // Track the owner of token
-    tokenOwners[newTokenId].isW3user = true;
-    tokenOwners[newTokenId].w3owner = _minter;
+    tokenOwners[newTokenId] = TokenOwner({
+      isW3user: true,
+      w3owner: _minter,
+      w2owner: ""
+    });
     // productId and edition are mapped to new token
     productEditions[_productId][_edition] = newTokenId;
 
@@ -227,7 +240,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     */
   function mintWithETH(
     string memory _royaltyReceiverId,
-    uint8 _royaltyPercentage,
+    uint16 _royaltyPercentage,
     string memory _productId,
     uint32 _edition,
     string memory _tokenURI
@@ -238,7 +251,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     require(bytes(_royaltyReceiverId).length > 0, "royalty receiver id is empty");
     require(
       _royaltyPercentage >= 0 && _royaltyPercentage <= ROYALTY_MAX,
-      "royalty percentage is empty or exceeded uint8 max"
+      "royalty percentage is empty or exceeded max"
     );
     require(bytes(_productId).length > 0, "product id is empty");
     require(
@@ -255,11 +268,16 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
 
     uint256 newTokenId = _tokenIds.current();
     // Track the creator of card
-    royaltyReceivers[newTokenId].receiverId = _royaltyReceiverId;
-    royaltyReceivers[newTokenId].percentage = _royaltyPercentage;
+    royaltyReceivers[newTokenId] = RoyaltyReceiver({
+      receiverId: _royaltyReceiverId,
+      percentage: _royaltyPercentage
+    });
     // Track the owner of token
-    tokenOwners[newTokenId].isW3user = true;
-    tokenOwners[newTokenId].w3owner = msg.sender;
+    tokenOwners[newTokenId] = TokenOwner({
+      isW3user: true,
+      w3owner: msg.sender,
+      w2owner: ""
+    });
     // productId and edition are mapped to new token
     productEditions[_productId][_edition] = newTokenId;
 
@@ -275,7 +293,7 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     *
     * @param _feePercent new fee percent
     */
-  function setFlatFee(uint8 _feePercent)
+  function setFlatFee(uint16 _feePercent)
     public
     onlyCEO
     returns (bool)
@@ -313,13 +331,17 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     );
 
     if (_newOwner != address(0)) {
-      tokenOwners[_tokenId].isW3user = true;
-      tokenOwners[_tokenId].w2owner = "";
-      tokenOwners[_tokenId].w3owner = _newOwner;
+      tokenOwners[_tokenId] = TokenOwner({
+        isW3user: true,
+        w3owner: _newOwner,
+        w2owner: ""
+      });
     } else {
-      tokenOwners[_tokenId].isW3user = false;
-      tokenOwners[_tokenId].w2owner = _newOwnerId;
-      tokenOwners[_tokenId].w3owner = address(0);
+      tokenOwners[_tokenId] = TokenOwner({
+        isW3user: false,
+        w3owner: address(0),
+        w2owner: _newOwnerId
+      });
     }
 
     emit ChangeTokenOwnership(_tokenId, _newOwnerId, _newOwner, block.timestamp);
@@ -338,9 +360,11 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
       require(ownerOf(tokenId) == dbiliaTrust, "Dbilia wallet does not own this token");
       if (_w3user != address(0)) {
         _transfer(dbiliaTrust, _w3user, tokenId);
-        tokenOwners[tokenId].isW3user = true;
-        tokenOwners[tokenId].w2owner = "";
-        tokenOwners[tokenId].w3owner = _w3user;
+        tokenOwners[tokenId] = TokenOwner({
+          isW3user: true,
+          w3owner: _w3user,
+          w2owner: ""
+        });
       }
     }
   }
@@ -364,11 +388,8 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     *  @param _tokenId token id
     */
   function getTokenOwnership(uint256 _tokenId) public view returns (bool, address, string memory) {
-    return (
-      tokenOwners[_tokenId].isW3user,
-      tokenOwners[_tokenId].w3owner,
-      tokenOwners[_tokenId].w2owner
-    );
+    TokenOwner memory tokenOwner = tokenOwners[_tokenId];
+    return (tokenOwner.isW3user, tokenOwner.w3owner, tokenOwner.w2owner);
   }
 
   /**
@@ -376,10 +397,8 @@ contract DbiliaToken is ERC721URIStorage, AccessControl {
     *
     *  @param _tokenId token id
     */
-  function getRoyaltyReceiver(uint256 _tokenId) public view returns (string memory, uint8) {
-    return (
-      royaltyReceivers[_tokenId].receiverId,
-      royaltyReceivers[_tokenId].percentage
-    );
+  function getRoyaltyReceiver(uint256 _tokenId) public view returns (string memory, uint16) {
+    RoyaltyReceiver memory royaltyReceiver = royaltyReceivers[_tokenId];
+    return (royaltyReceiver.receiverId, royaltyReceiver.percentage);
   }
 }

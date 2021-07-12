@@ -365,7 +365,7 @@ contract Marketplace is PriceConsumerV3 {
         uint256 feePercent = dbiliaToken.feePercent();
         uint256 fee = msg.value.mul(feePercent.mul(2)).div(1000);
 
-        (, uint8 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
+        (, uint16 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
         uint256 royaltyAmount = msg.value.mul(percentage).div(1000);
 
         uint256 sellerReceiveAmount = msg.value.sub(fee.add(royaltyAmount));
@@ -429,7 +429,7 @@ contract Marketplace is PriceConsumerV3 {
     * @param _tokenId token id
     */
     function _sendRoyalty(uint256 _tokenId) private returns (uint256) {
-        (, uint8 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
+        (, uint16 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
          uint256 royalty = msg.value.mul(percentage).div(1000);
         _send(royalty, dbiliaToken.dbiliaTrust());
         return royalty;
