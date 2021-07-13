@@ -653,7 +653,8 @@ describe("MarketPlace contract", function () {
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
-    const priceUSD = 500;
+    const priceUSD = 2000;
+    let currentPriceOfETHtoUSD;
     const auction = true;
 
     beforeEach(async function () {
@@ -673,59 +674,54 @@ describe("MarketPlace contract", function () {
     beforeEach(async function () {
       currentPriceOfETHtoUSD = await Marketplace.getCurrentPriceOfETHtoUSD();
       await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
     });
 
     describe("Success", function () {
-      it("Should place bid with ETH for w3user", async function () {
-        let fee;
-        let royalty;
-        let sellerReceiveAmount;
+      let fee;
+      let royalty;
+      let sellerReceiveAmount;
+      let balance_dbilia;
+      const buyerTotalToWei = BigNumber.from((10**19).toString()); // 10 ETH
 
-        const flatFee = await DbiliaToken.feePercent();
-        const buyerFee = (priceUSD * flatFee) / 1000;
-        const buyerTotalToWei = BigNumber.from(priceUSD + buyerFee).mul(BigNumber.from(1e18.toString())).div(BigNumber.from(currentPriceOfETHtoUSD));
+      beforeEach(async function () {
+        await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
+        balance_dbilia = await dbilia.getBalance();
+        balance_user1 = await user1.getBalance();
 
-        royalty = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(royaltyPercentage)).div(1000);
-        fee = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(feePercent)).div(500);
-        sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
+        royalty = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(royaltyPercentage)).div(1000);
+        fee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent).mul(2)).div(1000);
+        sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(fee.add(royalty));
         let block = await ethers.provider.getBlock('latest');
-
-        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
-          Marketplace,
-          "SetForSale"
-        ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
-
         expect(await Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD, {
           value: buyerTotalToWei.toString(),
         })).to.emit(
           Marketplace,
           "BiddingWithETH"
-        ).withArgs(1, user2.address, fee, royalty, sellerReceiveAmount, block.timestamp+2);
-        const tokenPrice = await Marketplace.tokenPriceUSD(1);
-        expect(tokenPrice).to.equal(0);
+        ).withArgs(1, user1.address, fee, royalty, sellerReceiveAmount, block.timestamp+1);
+      });
+      it("Should placeBid", async function () {
+        const dbilia_afterBid = await dbilia.getBalance();
+        expect(BigNumber.from(dbilia_afterBid).sub(buyerTotalToWei)).to.equal(BigNumber.from(balance_dbilia));
       });
     });
 
     describe("Fail", function () {
       it("Should fail if seller is not selling this token", async function () {
+        const buyerTotalToWei = BigNumber.from((10**18).toString());
         await expect(
-          Marketplace.connect(user1).placeBidWithETHw3user(0, priceUSD)
+          Marketplace.connect(user1).placeBidWithETHw3user(0, priceUSD, {
+            value: buyerTotalToWei.toString(),
+          })
         ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if this token is not on auction", async function () {
-        await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
-          Marketplace,
-          "SetForSale"
-        ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
-        expect(await Marketplace.connect(user1).removeSetForSaleETH(1)).to.emit(
-          Marketplace,
-          "SetForSale"
-        ).withArgs(1, 0, false, user1.address, block.timestamp+2);
+        const buyerTotalToWei = BigNumber.from((10**18).toString());
+        await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, false);
         await expect(
-          Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD)
+          Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD, {
+            value: buyerTotalToWei.toString(),
+          })
         ).to.be.revertedWith("this token is not on auction");
       });
     });
