@@ -468,6 +468,7 @@ describe("MarketPlace contract", function () {
     });
 
     describe("Success", function () {
+      let firstFee;
       let fee;
       let royalty;
       let sellerReceiveAmount;
@@ -481,21 +482,12 @@ describe("MarketPlace contract", function () {
         const buyerTotalToWei = BigNumber.from(priceUSD + buyerFee)
           .mul(BigNumber.from((1e18).toString()))
           .div(BigNumber.from(currentPriceOfETHtoUSD));
-        royalty = BigNumber.from(buyerTotalToWei)
-          .mul(BigNumber.from(royaltyPercentage))
-          .div(1000);
-        //console.log("royalty", royalty.toString());
-        fee = BigNumber.from(buyerTotalToWei)
-          .mul(BigNumber.from(feePercent))
-          .div(500);
-        //console.log("fee", fee.toString());
-        sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString())
-          .sub(royalty)
-          .sub(fee);
-        //console.log("sellerReceiveAmount", sellerReceiveAmount.toString());
-        // await Marketplace.connect(user2).purchaseWithETHw3user(1, {
-        //   value: buyerTotalToWei.toString(),
-        // });
+
+        firstFee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent)).div(feePercent + 1000);
+        fee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent).mul(2)).div(feePercent + 1000);
+        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(1000);
+        sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
+
         let block = await ethers.provider.getBlock('latest');
         expect(await Marketplace.connect(user2).purchaseWithETHw3user(1, {
           value: buyerTotalToWei.toString(),
@@ -577,6 +569,7 @@ describe("MarketPlace contract", function () {
     });
 
     describe("Success", function () {
+      let firstFee;
       let fee;
       let royalty;
       let sellerReceiveAmount;
@@ -591,8 +584,9 @@ describe("MarketPlace contract", function () {
         const buyerFee = (priceUSD * flatFee) / 1000;
         const buyerTotalToWei = BigNumber.from(priceUSD + buyerFee).mul(BigNumber.from(1e18.toString())).div(BigNumber.from(currentPriceOfETHtoUSD));
 
-        royalty = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(royaltyPercentage)).div(1000);
-        fee = BigNumber.from(buyerTotalToWei).mul(BigNumber.from(feePercent)).div(500);
+        firstFee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent)).div(feePercent + 1000);
+        fee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent).mul(2)).div(feePercent + 1000);
+        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(1000);
         sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
 
         let block = await ethers.provider.getBlock('latest');
@@ -653,7 +647,7 @@ describe("MarketPlace contract", function () {
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
-    const priceUSD = 2000;
+    const priceUSD = 1000;
     let currentPriceOfETHtoUSD;
     const auction = true;
 
@@ -677,6 +671,7 @@ describe("MarketPlace contract", function () {
     });
 
     describe("Success", function () {
+      let firstFee;
       let fee;
       let royalty;
       let sellerReceiveAmount;
@@ -688,9 +683,11 @@ describe("MarketPlace contract", function () {
         balance_dbilia = await dbilia.getBalance();
         balance_user1 = await user1.getBalance();
 
-        royalty = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(royaltyPercentage)).div(1000);
-        fee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent).mul(2)).div(1000);
-        sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(fee.add(royalty));
+        firstFee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent)).div(feePercent + 1000);
+        fee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent).mul(2)).div(feePercent + 1000);
+        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(1000);
+        sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
+
         let block = await ethers.provider.getBlock('latest');
         expect(await Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD, {
           value: buyerTotalToWei.toString(),
