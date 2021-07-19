@@ -305,7 +305,7 @@ contract Marketplace is PriceConsumerV3 {
     * 2. if w2user, increase the seller's internal ETH wallet balance
     *    - use sellerReceiveAmount from the event
     * 3. increase the royalty receiver's internal ETH wallet balance
-    *    - use royaltyReceivers(tokenId) to get the in-app address 
+    *    - use royaltyReceivers(tokenId) to get the in-app address
     *    - use royaltyAmount from the event
     *
     * @param _tokenId token id to buy
@@ -362,15 +362,11 @@ contract Marketplace is PriceConsumerV3 {
 
         _validateBidAmount(_bidPriceUSD);
 
-        uint256 feePercent = dbiliaToken.feePercent();
-        uint256 fee = msg.value.mul(feePercent.mul(2)).div(1000);
-
-        (, uint16 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
-        uint256 royaltyAmount = msg.value.mul(percentage).div(1000);
-
+        uint256 fee = _payBuyerSellerFee();
+        uint256 royaltyAmount = _sendRoyalty(_tokenId);
         uint256 sellerReceiveAmount = msg.value.sub(fee.add(royaltyAmount));
 
-        _send(msg.value, dbiliaToken.dbiliaTrust());
+        _send(sellerReceiveAmount, dbiliaToken.dbiliaTrust());
 
         emit BiddingWithETH(
             _tokenId,
@@ -417,7 +413,7 @@ contract Marketplace is PriceConsumerV3 {
     */
     function _payBuyerSellerFee() private returns (uint256) {
         uint256 feePercent = dbiliaToken.feePercent();
-        uint256 fee = msg.value.mul(feePercent.mul(2)).div(1000);
+        uint256 fee = msg.value.mul(feePercent.mul(2)).div(feePercent.add(1000));
         _send(fee, dbiliaToken.dbiliaTrust());
         return fee;
     }
@@ -429,8 +425,11 @@ contract Marketplace is PriceConsumerV3 {
     * @param _tokenId token id
     */
     function _sendRoyalty(uint256 _tokenId) private returns (uint256) {
+        uint256 feePercent = dbiliaToken.feePercent();
         (, uint16 percentage) = dbiliaToken.getRoyaltyReceiver(_tokenId);
-         uint256 royalty = msg.value.mul(percentage).div(1000);
+        uint256 firstFee = msg.value.mul(feePercent).div(feePercent + 1000);
+        uint256 royalty = msg.value.sub(firstFee).mul(percentage).div(1000);
+
         _send(royalty, dbiliaToken.dbiliaTrust());
         return royalty;
     }
