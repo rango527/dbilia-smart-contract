@@ -723,4 +723,113 @@ describe("MarketPlace contract", function () {
       });
     });
   });
+
+  describe("send token to auction winner", function () {
+    const priceUSD = 500;
+
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 105; // 10.5%
+    const minterId = "6099967cb589f4488cdb8105";
+    const minterId2 = "6099967cb589f4488cdb8106";
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const edition2 = 2;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const auction = true;
+
+    beforeEach(async function () {
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+        royaltyReceiverId,
+        royaltyPercentage,
+        minterId,
+        productId,
+        edition,
+        tokenURI
+      )).to.emit(
+        DbiliaToken,
+        "MintWithUSDw2user"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, minterId, productId, edition, block.timestamp+1);
+      expect(await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+        royaltyReceiverId,
+        royaltyPercentage,
+        minterId2,
+        productId,
+        edition2,
+        tokenURI
+      )).to.emit(
+        DbiliaToken,
+        "MintWithUSDw2user"
+      ).withArgs(2, royaltyReceiverId, royaltyPercentage, minterId2, productId, edition2, block.timestamp+2);
+    });
+
+    beforeEach(async function () {
+      await DbiliaToken.connect(dbilia).setApprovalForAll(Marketplace.address, true);
+      await Marketplace.connect(dbilia).setForSaleWithUSD(1, priceUSD, auction);
+      await Marketplace.connect(dbilia).setForSaleWithUSD(2, priceUSD, auction);
+    });
+
+    describe("Success", function () {
+      beforeEach(async function () {
+        let block = await ethers.provider.getBlock('latest');
+        expect(await Marketplace.connect(dbilia).claimAuctionWinner(1, user2.address, '')).to.emit(
+          Marketplace,
+          "ClaimAuctionWinner"
+        ).withArgs(1, user2.address, '', block.timestamp+1);
+        expect(await Marketplace.connect(dbilia).claimAuctionWinner(2, "0x0000000000000000000000000000000000000000", royaltyReceiverId)).to.emit(
+          Marketplace,
+          "ClaimAuctionWinner"
+        ).withArgs(2, "0x0000000000000000000000000000000000000000", royaltyReceiverId, block.timestamp+2);
+      });
+
+      it("Should check token owner - receiver", async function () {
+        let tokenowner = await DbiliaToken.tokenOwners(1);
+        expect(tokenowner.w3owner).to.equal(user2.address);
+        expect(tokenowner.isW3user).to.equal(true);
+        expect(tokenowner.w2owner).to.equal('');
+      });
+
+      it("Should check token owner - receiverId", async function () {
+        let tokenowner = await DbiliaToken.tokenOwners(2);
+        expect(tokenowner.w3owner).to.equal('0x0000000000000000000000000000000000000000');
+        expect(tokenowner.isW3user).to.equal(false);
+        expect(tokenowner.w2owner).to.equal(royaltyReceiverId);
+      });
+
+      it("Should check balance", async function () {
+        const balance = await DbiliaToken.balanceOf(user2.address);
+        expect(balance.toString()).to.equal("1");
+      });
+
+      it("Should check token price after selling", async function () {
+        const price = await Marketplace.tokenPriceUSD(1);
+        expect(price).to.equal(0);
+      });
+
+      it("Should check token price after selling - receiverId", async function () {
+        const price = await Marketplace.tokenPriceUSD(2);
+        expect(price).to.equal(0);
+      });
+    });
+
+    describe("Fail", function () {
+      it("Should fail if one of receivers should be passed in", async function () {
+        await expect(
+          Marketplace.connect(dbilia).claimAuctionWinner(1, "0x0000000000000000000000000000000000000000", '')
+        ).to.be.revertedWith("either one of receivers should be passed in");
+      });
+
+      it("Should fail if the seller is not selling the token", async function () {
+        await expect(
+          Marketplace.connect(dbilia).claimAuctionWinner(3, user2.address, '')
+        ).to.be.revertedWith("seller is not selling this token");
+      });
+
+      it("Should fail if other accounts trying to trigger", async function () {
+        await expect(
+          Marketplace.connect(user1).claimAuctionWinner(1, user2.address, '')
+        ).to.be.revertedWith("caller is not one of dbilia accounts");
+      });
+    });
+  });
 });
