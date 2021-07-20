@@ -813,10 +813,16 @@ describe("MarketPlace contract", function () {
     });
 
     describe("Fail", function () {
-      it("Should fail if one of receivers should be passed in", async function () {
+      it("Should fail if one of receivers is not passed in", async function () {
         await expect(
           Marketplace.connect(dbilia).claimAuctionWinner(1, "0x0000000000000000000000000000000000000000", '')
         ).to.be.revertedWith("either one of receivers should be passed in");
+      });
+
+      it("Should fail if can pass in both receiver info", async function () {
+        await expect(
+          Marketplace.connect(dbilia).claimAuctionWinner(1, user2.address, royaltyReceiverId)
+        ).to.be.revertedWith("cannot pass in both receiver info");
       });
 
       it("Should fail if the seller is not selling the token", async function () {
