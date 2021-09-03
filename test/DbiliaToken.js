@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { BigNumber } = require("ethers");
 
 describe("DbiliaToken contract", function () {
   var name = "Dbilia Token";
@@ -12,13 +13,21 @@ describe("DbiliaToken contract", function () {
   let user1;
   let user2;
   let addrs;
+  let WethTest;
+  const wethInitialSupply = BigNumber.from(1000000).mul(
+    BigNumber.from((1e18).toString())
+  );
+  const realPasscode = "protected";
+  const passcode = ethers.utils.hexZeroPad(ethers.utils.formatBytes32String(realPasscode), 32)
 
   beforeEach(async function () {
     DbiliaToken = await ethers.getContractFactory("DbiliaToken");
+    WethTest = await ethers.getContractFactory("WethTest");
     Marketplace = await ethers.getContractFactory("Marketplace");
     [ceo, dbilia, user1, user2, ...addrs] = await ethers.getSigners();
     DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent);
-    Marketplace = await Marketplace.deploy(DbiliaToken.address);
+    WethTest = await WethTest.deploy(wethInitialSupply);
+    Marketplace = await Marketplace.deploy(DbiliaToken.address, WethTest.address);
   });
 
   beforeEach(async function () {
@@ -351,7 +360,8 @@ describe("DbiliaToken contract", function () {
         royaltyPercentage,
         productId,
         edition,
-        tokenURI
+        tokenURI,
+        ethers.utils.keccak256(passcode + user1.address.substring(2))
       )).to.emit(
         DbiliaToken,
         "MintWithETH"
@@ -395,7 +405,8 @@ describe("DbiliaToken contract", function () {
             royaltyPercentage,
             productId,
             edition,
-            tokenURI
+            tokenURI,
+            ethers.utils.keccak256(passcode + user1.address.substring(2))
           )
         ).to.be.revertedWith("royalty receiver id is empty");
       });
@@ -406,7 +417,8 @@ describe("DbiliaToken contract", function () {
             royaltyPercentage,
             "",
             edition,
-            tokenURI
+            tokenURI,
+            ethers.utils.keccak256(passcode + user1.address.substring(2))
           )
         ).to.be.revertedWith("product id is empty");
       });
@@ -417,7 +429,8 @@ describe("DbiliaToken contract", function () {
             royaltyPercentage,
             productId,
             edition,
-            ""
+            "",
+            ethers.utils.keccak256(passcode + user1.address.substring(2))
           )
         ).to.be.revertedWith("token uri is empty");
       });
@@ -428,9 +441,50 @@ describe("DbiliaToken contract", function () {
             royaltyPercentage,
             productId,
             edition,
-            tokenURI
+            tokenURI,
+            ethers.utils.keccak256(passcode + user1.address.substring(2))
           )
         ).to.be.revertedWith("product edition has already been created");
+      });
+      it("Should fail if invalid passcode", async function () {
+        await expect(
+          DbiliaToken.connect(user1).mintWithETH(
+            royaltyReceiverId,
+            royaltyPercentage,
+            productId,
+            edition,
+            tokenURI,
+            ethers.utils.keccak256(passcode + user2.address.substring(2))
+          )
+        ).to.be.revertedWith("invalid passcode");
+      });
+      it("Check setPasscode", async function () {
+        await expect(
+          DbiliaToken.connect(user1).setPasscode(
+            "reprotected"
+          )
+        ).to.be.revertedWith("caller is not CEO");
+        
+        const newRealPasscode = "reprotected";
+        expect(await DbiliaToken.connect(ceo).setPasscode(
+          newRealPasscode
+        ));
+        // expect(await DbiliaToken.connect(dbilia).getPasscode()).to.equal(
+        //   newRealPasscode
+        // );
+        const newPasscode = ethers.utils.hexZeroPad(ethers.utils.formatBytes32String(newRealPasscode), 32)
+        let block = await ethers.provider.getBlock('latest');
+        expect(await DbiliaToken.connect(user1).mintWithETH(
+          royaltyReceiverId,
+          royaltyPercentage,
+          productId,
+          edition + 1,
+          tokenURI,
+          ethers.utils.keccak256(newPasscode + user1.address.substring(2))
+        )).to.emit(
+          DbiliaToken,
+          "MintWithETH"
+        ).withArgs(2, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition + 1, block.timestamp+1);
       });
     });
   });

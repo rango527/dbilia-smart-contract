@@ -12,13 +12,21 @@ describe("MarketPlace contract", function () {
   let user1;
   let user2;
   let addrs;
+  let WethTest;
+  const wethInitialSupply = BigNumber.from(1000000000).mul(
+    BigNumber.from((1e18).toString())
+  );
+  const realPasscode = "protected";
+  const passcode = ethers.utils.hexZeroPad(ethers.utils.formatBytes32String(realPasscode), 32)
 
   beforeEach(async function () {
     DbiliaToken = await ethers.getContractFactory("DbiliaToken");
+    WethTest = await ethers.getContractFactory("WethTest");
     Marketplace = await ethers.getContractFactory("Marketplace");
     [ceo, dbilia, user1, user2, ...addrs] = await ethers.getSigners();
     DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent);
-    Marketplace = await Marketplace.deploy(DbiliaToken.address);
+    WethTest = await WethTest.deploy(wethInitialSupply);
+    Marketplace = await Marketplace.deploy(DbiliaToken.address, WethTest.address);
   });
 
   beforeEach(async function () {
@@ -43,7 +51,7 @@ describe("MarketPlace contract", function () {
 
   describe("Token owner sets price with USD for sale", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
@@ -57,7 +65,8 @@ describe("MarketPlace contract", function () {
         royaltyPercentage,
         productId,
         edition,
-        tokenURI
+        tokenURI,
+        ethers.utils.keccak256(passcode + user1.address.substring(2))
       )).to.emit(
         DbiliaToken,
         "MintWithETH"
@@ -68,7 +77,12 @@ describe("MarketPlace contract", function () {
       it("Should track tokens price", async function () {
         await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
+        expect(await Marketplace.connect(user1).setForSaleWithETH(
+          1,
+          priceUSD,
+          auction,
+          ethers.utils.keccak256(passcode + user1.address.substring(2))
+        )).to.emit(
           Marketplace,
           "SetForSale"
         ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
@@ -80,7 +94,12 @@ describe("MarketPlace contract", function () {
     describe("Fail", function () {
       it("Should fail if the caller is not the token owner", async function () {
         await expect(
-          Marketplace.connect(user2).setForSaleWithETH(1, priceUSD, auction)
+          Marketplace.connect(user2).setForSaleWithETH(
+            1,
+            priceUSD,
+            auction,
+            ethers.utils.keccak256(passcode + user2.address.substring(2))
+          )
         ).to.be.revertedWith("caller is not a token owner");
       });
     });
@@ -88,7 +107,7 @@ describe("MarketPlace contract", function () {
 
   describe("Token owner remove price with USD for sale", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
@@ -102,7 +121,8 @@ describe("MarketPlace contract", function () {
         royaltyPercentage,
         productId,
         edition,
-        tokenURI
+        tokenURI,
+        ethers.utils.keccak256(passcode + user1.address.substring(2))
       )).to.emit(
         DbiliaToken,
         "MintWithETH"
@@ -113,11 +133,11 @@ describe("MarketPlace contract", function () {
       it("Should track remove tokens price", async function () {
         await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction, ethers.utils.keccak256(passcode + user1.address.substring(2)))).to.emit(
           Marketplace,
           "SetForSale"
         ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
-        expect(await Marketplace.connect(user1).removeSetForSaleETH(1)).to.emit(
+        expect(await Marketplace.connect(user1).removeSetForSaleETH(1, ethers.utils.keccak256(passcode + user1.address.substring(2)))).to.emit(
           Marketplace,
           "SetForSale"
         ).withArgs(1, 0, false, user1.address, block.timestamp+2);
@@ -129,25 +149,25 @@ describe("MarketPlace contract", function () {
     describe("Fail", function () {
       it("Should fail if the token has not set for sale", async function () {
         await expect(
-          Marketplace.connect(user1).removeSetForSaleETH(1)
+          Marketplace.connect(user1).removeSetForSaleETH(1, ethers.utils.keccak256(passcode + user1.address.substring(2)))
         ).to.be.revertedWith("token has not set for sale");
       });
 
       it("Should fail if the token id is zero or lower", async function () {
         await expect(
-          Marketplace.connect(user1).removeSetForSaleETH(0)
+          Marketplace.connect(user1).removeSetForSaleETH(0, ethers.utils.keccak256(passcode + user1.address.substring(2)))
         ).to.be.revertedWith("token id is zero or lower");
       });
 
       it("Should fail if the caller is not the token owner", async function () {
         await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction)).to.emit(
+        expect(await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction, ethers.utils.keccak256(passcode + user1.address.substring(2)))).to.emit(
           Marketplace,
           "SetForSale"
         ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
         await expect(
-          Marketplace.connect(user2).removeSetForSaleETH(1)
+          Marketplace.connect(user2).removeSetForSaleETH(1, ethers.utils.keccak256(passcode + user2.address.substring(2)))
         ).to.be.revertedWith("caller is not a token owner");
       });
     });
@@ -158,7 +178,7 @@ describe("MarketPlace contract", function () {
     const buyerId = "6097cf186eaef77320e81fdd";
 
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const minterId = "6099967cb589f4488cdb8105";
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
@@ -220,7 +240,7 @@ describe("MarketPlace contract", function () {
     const buyerId = "6097cf186eaef77320e81fdd";
 
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
@@ -233,7 +253,8 @@ describe("MarketPlace contract", function () {
         royaltyPercentage,
         productId,
         edition,
-        tokenURI
+        tokenURI,
+        ethers.utils.keccak256(passcode + user1.address.substring(2))
       )).to.emit(
         DbiliaToken,
         "MintWithETH"
@@ -242,7 +263,7 @@ describe("MarketPlace contract", function () {
 
     beforeEach(async function () {
       await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
+      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction, ethers.utils.keccak256(passcode + user1.address.substring(2)));
     });
 
     describe("Success", function () {
@@ -281,7 +302,7 @@ describe("MarketPlace contract", function () {
     const priceUSD = 500;
 
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const minterId = "6099967cb589f4488cdb8105";
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
@@ -360,7 +381,7 @@ describe("MarketPlace contract", function () {
     const priceUSD = 500;
 
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
@@ -373,7 +394,8 @@ describe("MarketPlace contract", function () {
         royaltyPercentage,
         productId,
         edition,
-        tokenURI
+        tokenURI,
+        ethers.utils.keccak256(passcode + user1.address.substring(2))
       )).to.emit(
         DbiliaToken,
         "MintWithETH"
@@ -382,7 +404,7 @@ describe("MarketPlace contract", function () {
 
     beforeEach(async function () {
       await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
+      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction, ethers.utils.keccak256(passcode + user1.address.substring(2)));
     });
 
     describe("Success", function () {
@@ -425,7 +447,7 @@ describe("MarketPlace contract", function () {
 
   describe("w3user is purchasing With ETH if seller is a web2 user", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const minterId = "6099967cb589f4488cdb8105";
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
@@ -464,7 +486,7 @@ describe("MarketPlace contract", function () {
         Marketplace.address,
         true
       );
-      await Marketplace.connect(dbilia).setForSaleWithETH(1, priceUSD, auction);
+      await Marketplace.connect(dbilia).setForSaleWithETH(1, priceUSD, auction, ethers.utils.keccak256(passcode + dbilia.address.substring(2)));
     });
 
     describe("Success", function () {
@@ -475,7 +497,7 @@ describe("MarketPlace contract", function () {
       let balance_dbilia;
 
       beforeEach(async function () {
-        balance_dbilia = await dbilia.getBalance();
+        balance_dbilia = await WethTest.balanceOf(dbilia.address);
 
         const flatFee = await DbiliaToken.feePercent();
         const buyerFee = (priceUSD * flatFee) / 1000;
@@ -485,19 +507,19 @@ describe("MarketPlace contract", function () {
 
         firstFee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent)).div(feePercent + 1000);
         fee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent).mul(2)).div(feePercent + 1000);
-        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(1000);
+        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(100);
         sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
 
+        await WethTest.connect(ceo).transfer(user2.address, buyerTotalToWei.toString());
+        await WethTest.connect(user2).approve(Marketplace.address, buyerTotalToWei.toString());
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user2).purchaseWithETHw3user(1, {
-          value: buyerTotalToWei.toString(),
-        })).to.emit(
+        expect(await Marketplace.connect(user2).purchaseWithETHw3user(1, buyerTotalToWei.toString(), ethers.utils.keccak256(passcode + user2.address.substring(2)))).to.emit(
           Marketplace,
           "PurchaseWithETH"
         ).withArgs(1, user2.address, false, "0x0000000000000000000000000000000000000000", minterId, fee, royalty, sellerReceiveAmount, block.timestamp+1);
       });
       it("Should send fee, royalty, payment to dbilia", async function () {
-        const balance_dbilia_afterSelling = await dbilia.getBalance();
+        const balance_dbilia_afterSelling = await WethTest.balanceOf(dbilia.address);
         expect(
           BigNumber.from(balance_dbilia)
             .add(fee)
@@ -520,19 +542,19 @@ describe("MarketPlace contract", function () {
     describe("Fail", function () {
       it("Should fail if the seller is not selling the token", async function () {
         const payAmount = BigNumber.from((10 ** 18).toString()); // 1 ETH
+        await WethTest.connect(ceo).transfer(user2.address, payAmount);
+        await WethTest.connect(user2).approve(Marketplace.address, payAmount);
         await expect(
-          Marketplace.connect(user2).purchaseWithETHw3user(2, {
-            value: payAmount,
-          })
+          Marketplace.connect(user2).purchaseWithETHw3user(2, payAmount, ethers.utils.keccak256(passcode + user2.address.substring(2)))
         ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if the pay amount is less than the token price", async function () {
         const lessPayAmount = BigNumber.from((10 ** 17).toString());
+        await WethTest.connect(ceo).transfer(user2.address, lessPayAmount);
+        await WethTest.connect(user2).approve(Marketplace.address, lessPayAmount);
         await expect(
-          Marketplace.connect(user2).purchaseWithETHw3user(1, {
-            value: lessPayAmount,
-          })
+          Marketplace.connect(user2).purchaseWithETHw3user(1, lessPayAmount, ethers.utils.keccak256(passcode + user2.address.substring(2)))
         ).to.be.revertedWith("not enough of ETH being sent");
       });
     });
@@ -540,7 +562,7 @@ describe("MarketPlace contract", function () {
 
   describe("w3user is purchasing With ETH if seller is a web3 user", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
@@ -555,7 +577,8 @@ describe("MarketPlace contract", function () {
         royaltyPercentage,
         productId,
         edition,
-        tokenURI
+        tokenURI,
+        ethers.utils.keccak256(passcode + user1.address.substring(2))
       )).to.emit(
         DbiliaToken,
         "MintWithETH"
@@ -565,7 +588,7 @@ describe("MarketPlace contract", function () {
     beforeEach(async function () {
       currentPriceOfETHtoUSD = await Marketplace.getCurrentPriceOfETHtoUSD();
       await DbiliaToken.connect(user1).setApprovalForAll(Marketplace.address, true);
-      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
+      await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction, ethers.utils.keccak256(passcode + user1.address.substring(2)));
     });
 
     describe("Success", function () {
@@ -577,8 +600,8 @@ describe("MarketPlace contract", function () {
       let balance_user1;
 
       beforeEach(async function () {
-        balance_dbilia = await dbilia.getBalance();
-        balance_user1 = await user1.getBalance();
+        balance_dbilia = await WethTest.balanceOf(dbilia.address);
+        balance_user1 = await WethTest.balanceOf(user1.address);
 
         const flatFee = await DbiliaToken.feePercent();
         const buyerFee = (priceUSD * flatFee) / 1000;
@@ -586,28 +609,28 @@ describe("MarketPlace contract", function () {
 
         firstFee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent)).div(feePercent + 1000);
         fee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent).mul(2)).div(feePercent + 1000);
-        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(1000);
+        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(100);
         sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
 
+        await WethTest.connect(ceo).transfer(user2.address, buyerTotalToWei.toString());
+        await WethTest.connect(user2).approve(Marketplace.address, buyerTotalToWei.toString());
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user2).purchaseWithETHw3user(1, {
-          value: buyerTotalToWei.toString(),
-        })).to.emit(
+        expect(await Marketplace.connect(user2).purchaseWithETHw3user(1, buyerTotalToWei.toString(), ethers.utils.keccak256(passcode + user2.address.substring(2)))).to.emit(
           Marketplace,
           "PurchaseWithETH"
         ).withArgs(1, user2.address, true, user1.address, "", fee, royalty, sellerReceiveAmount, block.timestamp+1);
 
-        const balance_user1_afterSelling = await user1.getBalance();
+        const balance_user1_afterSelling = await WethTest.balanceOf(user1.address);
         expect(BigNumber.from(balance_user1).add(sellerReceiveAmount)).to.equal(BigNumber.from(balance_user1_afterSelling));
       });
       it("Should send fee and royalty to dbilia", async function () {
-        const balance_dbilia_afterSelling = await dbilia.getBalance();
+        const balance_dbilia_afterSelling = await WethTest.balanceOf(dbilia.address);
         expect(BigNumber.from(balance_dbilia).add(fee).add(royalty)).to.equal(
           BigNumber.from(balance_dbilia_afterSelling)
         );
       });
       it("Should send payment to w3user seller", async function () {
-        const balance_user1_afterSelling = await user1.getBalance();
+        const balance_user1_afterSelling = await WethTest.balanceOf(user1.address);
         expect(BigNumber.from(balance_user1).add(sellerReceiveAmount)).to.equal(
           BigNumber.from(balance_user1_afterSelling)
         );
@@ -627,15 +650,19 @@ describe("MarketPlace contract", function () {
     describe("Fail", function () {
       it("Should fail if the seller is not selling the token", async function () {
         const payAmount = BigNumber.from((10**18).toString()); // 1 ETH
+        await WethTest.connect(ceo).transfer(user2.address, payAmount);
+        await WethTest.connect(user2).approve(Marketplace.address, payAmount);
         await expect(
-          Marketplace.connect(user2).purchaseWithETHw3user(2, { value: payAmount })
+          Marketplace.connect(user2).purchaseWithETHw3user(2, payAmount, ethers.utils.keccak256(passcode + user2.address.substring(2)))
         ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if the pay amount is less than the token price", async function () {
         const lessPayAmount = BigNumber.from((10**17).toString());
+        await WethTest.connect(ceo).transfer(user2.address, lessPayAmount);
+        await WethTest.connect(user2).approve(Marketplace.address, lessPayAmount);
         await expect(
-          Marketplace.connect(user2).purchaseWithETHw3user(1, { value: lessPayAmount })
+          Marketplace.connect(user2).purchaseWithETHw3user(1, lessPayAmount, ethers.utils.keccak256(passcode + user2.address.substring(2)))
         ).to.be.revertedWith("not enough of ETH being sent");
       });
     });
@@ -643,7 +670,7 @@ describe("MarketPlace contract", function () {
 
   describe("w3user placeBid with ETH", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
@@ -658,7 +685,8 @@ describe("MarketPlace contract", function () {
         royaltyPercentage,
         productId,
         edition,
-        tokenURI
+        tokenURI,
+        ethers.utils.keccak256(passcode + user1.address.substring(2))
       )).to.emit(
         DbiliaToken,
         "MintWithETH"
@@ -679,25 +707,25 @@ describe("MarketPlace contract", function () {
       const buyerTotalToWei = BigNumber.from((10**19).toString()); // 10 ETH
 
       beforeEach(async function () {
-        await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction);
-        balance_dbilia = await dbilia.getBalance();
-        balance_user1 = await user1.getBalance();
+        await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, auction, ethers.utils.keccak256(passcode + user1.address.substring(2)));
+        balance_dbilia = await WethTest.balanceOf(dbilia.address);
+        balance_user1 = await WethTest.balanceOf(user1.address);
 
         firstFee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent)).div(feePercent + 1000);
         fee = BigNumber.from(buyerTotalToWei.toString()).mul(BigNumber.from(feePercent).mul(2)).div(feePercent + 1000);
-        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(1000);
+        royalty = BigNumber.from(buyerTotalToWei.toString()).sub(firstFee).mul(BigNumber.from(royaltyPercentage)).div(100);
         sellerReceiveAmount = BigNumber.from(buyerTotalToWei.toString()).sub(royalty).sub(fee);
 
+        await WethTest.connect(ceo).transfer(user1.address, buyerTotalToWei.toString());
+        await WethTest.connect(user1).approve(Marketplace.address, buyerTotalToWei.toString());
         let block = await ethers.provider.getBlock('latest');
-        expect(await Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD, {
-          value: buyerTotalToWei.toString(),
-        })).to.emit(
+        expect(await Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD, buyerTotalToWei.toString(), ethers.utils.keccak256(passcode + user1.address.substring(2)))).to.emit(
           Marketplace,
           "BiddingWithETH"
         ).withArgs(1, user1.address, fee, royalty, sellerReceiveAmount, block.timestamp+1);
       });
       it("Should placeBid", async function () {
-        const dbilia_afterBid = await dbilia.getBalance();
+        const dbilia_afterBid = await WethTest.balanceOf(dbilia.address);
         expect(BigNumber.from(dbilia_afterBid).sub(buyerTotalToWei)).to.equal(BigNumber.from(balance_dbilia));
       });
     });
@@ -705,20 +733,20 @@ describe("MarketPlace contract", function () {
     describe("Fail", function () {
       it("Should fail if seller is not selling this token", async function () {
         const buyerTotalToWei = BigNumber.from((10**18).toString());
+        await WethTest.connect(ceo).transfer(user1.address, buyerTotalToWei.toString());
+        await WethTest.connect(user1).approve(Marketplace.address, buyerTotalToWei.toString());
         await expect(
-          Marketplace.connect(user1).placeBidWithETHw3user(0, priceUSD, {
-            value: buyerTotalToWei.toString(),
-          })
+          Marketplace.connect(user1).placeBidWithETHw3user(0, priceUSD, buyerTotalToWei.toString(), ethers.utils.keccak256(passcode + user1.address.substring(2)))
         ).to.be.revertedWith("seller is not selling this token");
       });
 
       it("Should fail if this token is not on auction", async function () {
         const buyerTotalToWei = BigNumber.from((10**18).toString());
-        await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, false);
+        await Marketplace.connect(user1).setForSaleWithETH(1, priceUSD, false, ethers.utils.keccak256(passcode + user1.address.substring(2)));
+        await WethTest.connect(ceo).transfer(user1.address, buyerTotalToWei.toString());
+        await WethTest.connect(user1).approve(Marketplace.address, buyerTotalToWei.toString());
         await expect(
-          Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD, {
-            value: buyerTotalToWei.toString(),
-          })
+          Marketplace.connect(user1).placeBidWithETHw3user(1, priceUSD, buyerTotalToWei.toString(), ethers.utils.keccak256(passcode + user1.address.substring(2)))
         ).to.be.revertedWith("this token is not on auction");
       });
     });
@@ -728,7 +756,7 @@ describe("MarketPlace contract", function () {
     const priceUSD = 500;
 
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
-    const royaltyPercentage = 105; // 10.5%
+    const royaltyPercentage = 10; // 10%
     const minterId = "6099967cb589f4488cdb8105";
     const minterId2 = "6099967cb589f4488cdb8106";
     const productId = "60ad481e27a4265b10d73b13";
