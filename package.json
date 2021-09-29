@@ -21,12 +21,14 @@
     "test": "npm run build && npx hardhat test --config hardhat.config.js ./test/*.js",
     "test-token": "npm run build && npx hardhat test --config hardhat.config.js ./test/DbiliaToken.js",
     "test-marketplace": "npm run build && npx hardhat test --config hardhat.config.js ./test/Marketplace.js",
+    "test-marketplace-use-eur": "npm run build && npx hardhat test --config hardhat.config.js ./test/MarketplaceUseEUR.js",
     "test-wethreceiver": "npm run build && npx hardhat test --config hardhat.config.js ./test/WethReceiver.js",
     "deploy-matictestnet": "npx hardhat run --network matictestnet scripts/deploy.js",
     "deploy-maticmainnet": "npx hardhat run --network maticmainnet scripts/deploy.js",
     "deploy-hardhat": "npx hardhat run --network hardhat scripts/deploy.js",
     "deploy-weth-receiver-matictestnet": "npx hardhat run --network matictestnet scripts/deploy_weth_receiver.js",
     "deploy-weth-receiver-maticmainnet": "npx hardhat run --network maticmainnet scripts/deploy_weth_receiver.js",
-    "deploy-weth-receiver-hardhat": "npx hardhat run --network hardhat scripts/deploy_weth_receiver.js"
+    "deploy-weth-receiver-hardhat": "npx hardhat run --network hardhat scripts/deploy_weth_receiver.js",
+    "create-keystore": "npx hardhat run --network hardhat scripts/create_keystore.js"
   }
 }

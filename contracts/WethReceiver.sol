@@ -54,4 +54,9 @@ contract WethReceiver is EIP712MetaTransaction {
   function setBeneficiary(address _beneficiary) external onlyDbilia {
     beneficiary = _beneficiary;
   }
+
+  function sendPayout(uint256 amount, address _receiver) external onlyDbilia {
+    require(amount > 0, "WethReceiver: Invalid amount");
+    weth.safeTransferFrom(beneficiary, _receiver, amount);
+  }
 }
