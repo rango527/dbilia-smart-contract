@@ -92,7 +92,7 @@ describe("DbiliaToken contract", function () {
     });
   });
 
-  describe("w2user is minting with USD", function () {
+  describe("w2user is minting with Fiat", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
     const royaltyPercentage = 5;
     const minterId = "6099967cb589f4488cdb8105";
@@ -102,7 +102,7 @@ describe("DbiliaToken contract", function () {
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
-      expect(await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+      expect(await DbiliaToken.connect(dbilia).mintWithFiatw2user(
         royaltyReceiverId,
         royaltyPercentage,
         minterId,
@@ -111,7 +111,7 @@ describe("DbiliaToken contract", function () {
         tokenURI
       )).to.emit(
         DbiliaToken,
-        "MintWithUSDw2user"
+        "MintWithFiatw2user"
       ).withArgs(1, royaltyReceiverId, royaltyPercentage, minterId, productId, edition, block.timestamp+1);
     });
 
@@ -153,7 +153,7 @@ describe("DbiliaToken contract", function () {
     describe("Fail", function () {
       it("Should fail if royaltyReceiverId is missing", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             "",
             royaltyPercentage,
             minterId,
@@ -165,7 +165,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if minterId is missing", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             "",
@@ -177,7 +177,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if productId is missing", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             minterId,
@@ -189,7 +189,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if token uri is missing", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             minterId,
@@ -201,7 +201,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if product edition has already been created", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             minterId,
@@ -213,7 +213,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if other accounts tried to trigger", async function () {
         await expect(
-          DbiliaToken.connect(user1).mintWithUSDw2user(
+          DbiliaToken.connect(user1).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             minterId,
@@ -226,7 +226,7 @@ describe("DbiliaToken contract", function () {
     });
   });
 
-  describe("w3user is minting with USD", function () {
+  describe("w3user is minting with Fiat", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
     const royaltyPercentage = 5;
     const productId = "60ad481e27a4265b10d73b13";
@@ -235,7 +235,7 @@ describe("DbiliaToken contract", function () {
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
-      expect(await DbiliaToken.connect(dbilia).mintWithUSDw3user(
+      expect(await DbiliaToken.connect(dbilia).mintWithFiatw3user(
         royaltyReceiverId,
         royaltyPercentage,
         user1.address,
@@ -244,7 +244,7 @@ describe("DbiliaToken contract", function () {
         tokenURI
       )).to.emit(
         DbiliaToken,
-        "MintWithUSDw3user"
+        "MintWithFiatw3user"
       ).withArgs(1, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition, block.timestamp+1);
     });
 
@@ -286,7 +286,7 @@ describe("DbiliaToken contract", function () {
     describe("Fail", function () {
       it("Should fail if royaltyReceiverId is missing", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw3user(
+          DbiliaToken.connect(dbilia).mintWithFiatw3user(
             "",
             royaltyPercentage,
             user1.address,
@@ -298,7 +298,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if minter address is missing", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             "",
@@ -310,7 +310,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if productId is missing", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             user1.address,
@@ -322,7 +322,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if token uri is missing", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             user1.address,
@@ -334,7 +334,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if product edition has already been created", async function () {
         await expect(
-          DbiliaToken.connect(dbilia).mintWithUSDw2user(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             user1.address,
@@ -346,7 +346,7 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if other accounts tried to trigger", async function () {
         await expect(
-          DbiliaToken.connect(user1).mintWithUSDw2user(
+          DbiliaToken.connect(user1).mintWithFiatw2user(
             royaltyReceiverId,
             royaltyPercentage,
             user1.address,
@@ -529,7 +529,7 @@ describe("DbiliaToken contract", function () {
     const minterId2 = "1042967cb589f4488cdb5346";
 
     beforeEach(async function () {
-      await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+      await DbiliaToken.connect(dbilia).mintWithFiatw2user(
         royaltyReceiverId,
         royaltyPercentage,
         minterId,
@@ -565,7 +565,7 @@ describe("DbiliaToken contract", function () {
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
 
     beforeEach(async function () {
-      await DbiliaToken.connect(dbilia).mintWithUSDw3user(
+      await DbiliaToken.connect(dbilia).mintWithFiatw3user(
         royaltyReceiverId,
         royaltyPercentage,
         user1.address,
@@ -599,7 +599,7 @@ describe("DbiliaToken contract", function () {
     const minterId2 = "1042967cb589f4488cdb5346";
 
     beforeEach(async function () {
-      await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+      await DbiliaToken.connect(dbilia).mintWithFiatw2user(
         royaltyReceiverId,
         royaltyPercentage,
         minterId,
@@ -607,7 +607,7 @@ describe("DbiliaToken contract", function () {
         edition,
         tokenURI
       );
-      await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+      await DbiliaToken.connect(dbilia).mintWithFiatw2user(
         royaltyReceiverId,
         royaltyPercentage,
         minterId,
@@ -615,7 +615,7 @@ describe("DbiliaToken contract", function () {
         2,
         tokenURI
       );
-      await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+      await DbiliaToken.connect(dbilia).mintWithFiatw2user(
         royaltyReceiverId,
         royaltyPercentage,
         minterId,
@@ -652,7 +652,7 @@ describe("DbiliaToken contract", function () {
       const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
 
       beforeEach(async function () {
-        await DbiliaToken.connect(dbilia).mintWithUSDw3user(
+        await DbiliaToken.connect(dbilia).mintWithFiatw3user(
           royaltyReceiverId,
           royaltyPercentage,
           user1.address,

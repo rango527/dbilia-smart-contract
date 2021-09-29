@@ -53,7 +53,7 @@ describe("MarketPlace contract use EUR", function () {
     beforeEach(async function () {
       let block = await ethers.provider.getBlock("latest");
       expect(
-        await DbiliaToken.connect(dbilia).mintWithUSDw2user(
+        await DbiliaToken.connect(dbilia).mintWithFiatw2user(
           royaltyReceiverId,
           royaltyPercentage,
           minterId,
@@ -62,7 +62,7 @@ describe("MarketPlace contract use EUR", function () {
           tokenURI
         )
       )
-        .to.emit(DbiliaToken, "MintWithUSDw2user")
+        .to.emit(DbiliaToken, "MintWithFiatw2user")
         .withArgs(
           1,
           royaltyReceiverId,

@@ -44,7 +44,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
   mapping (string => mapping(uint256 => uint256)) public productEditions;
 
   // Events
-  event MintWithUSDw2user(
+  event MintWithFiatw2user(
     uint256 _tokenId,
     string _royaltyReceiverId,
     uint16 _royaltyPercentage,
@@ -54,7 +54,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     uint256 _timestamp
   );
 
-  event MintWithUSDw3user(
+  event MintWithFiatw3user(
     uint256 _tokenId,
     string _royaltyReceiverId,
     uint16 _royaltyPercentage,
@@ -135,7 +135,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     * @param _edition edition number
     * @param _tokenURI token uri stored in IPFS
     */
-  function mintWithUSDw2user(
+  function mintWithFiatw2user(
     string memory _royaltyReceiverId,
     uint16 _royaltyPercentage,
     string memory _minterId,
@@ -181,7 +181,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     _mint(_msgSender(), newTokenId);
     _setTokenURI(newTokenId, _tokenURI);
 
-    emit MintWithUSDw2user(newTokenId, _royaltyReceiverId, _royaltyPercentage, _minterId, _productId, _edition, block.timestamp);
+    emit MintWithFiatw2user(newTokenId, _royaltyReceiverId, _royaltyPercentage, _minterId, _productId, _edition, block.timestamp);
   }
 
 /**
@@ -198,7 +198,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     * @param _edition edition number
     * @param _tokenURI token uri stored in IPFS
     */
-  function mintWithUSDw3user(
+  function mintWithFiatw3user(
     string memory _royaltyReceiverId,
     uint16 _royaltyPercentage,
     address _minter,
@@ -244,7 +244,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     _mint(_minter, newTokenId);
     _setTokenURI(newTokenId, _tokenURI);
 
-    emit MintWithUSDw3user(newTokenId, _royaltyReceiverId, _royaltyPercentage, _minter, _productId, _edition, block.timestamp);
+    emit MintWithFiatw3user(newTokenId, _royaltyReceiverId, _royaltyPercentage, _minter, _productId, _edition, block.timestamp);
   }
 
   /**
