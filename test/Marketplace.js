@@ -19,6 +19,10 @@ describe("MarketPlace contract", function () {
   const realPasscode = "protected";
   const passcode = ethers.utils.hexZeroPad(ethers.utils.formatBytes32String(realPasscode), 32)
 
+  // Set to true for Momenta app with base currency of EUR. Any functions of "WithUSD" will be meant for "WithEUR"
+  // Set to false for Dbilia app with base currency of USD
+  const useEUR = false;
+
   beforeEach(async function () {
     DbiliaToken = await ethers.getContractFactory("DbiliaToken");
     WethTest = await ethers.getContractFactory("WethTest");
@@ -26,12 +30,13 @@ describe("MarketPlace contract", function () {
     [ceo, dbilia, user1, user2, ...addrs] = await ethers.getSigners();
     DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent);
     WethTest = await WethTest.deploy(wethInitialSupply);
-    Marketplace = await Marketplace.deploy(DbiliaToken.address, WethTest.address);
+    Marketplace = await Marketplace.deploy(DbiliaToken.address, WethTest.address, useEUR);
   });
 
   beforeEach(async function () {
     await DbiliaToken.changeDbiliaTrust(dbilia.address);
     await DbiliaToken.changeMarketplace(Marketplace.address);
+    await DbiliaToken.changeDbiliaFee(dbilia.address);
   });
 
   describe("Deployment", function () {
@@ -86,7 +91,7 @@ describe("MarketPlace contract", function () {
           Marketplace,
           "SetForSale"
         ).withArgs(1, priceUSD, auction, user1.address, block.timestamp+1);
-        const tokenPrice = await Marketplace.tokenPriceUSD(1);
+        const tokenPrice = await Marketplace.tokenPriceFiat(1);
         expect(tokenPrice).to.equal(priceUSD);
       });
     });
@@ -141,7 +146,7 @@ describe("MarketPlace contract", function () {
           Marketplace,
           "SetForSale"
         ).withArgs(1, 0, false, user1.address, block.timestamp+2);
-        const tokenPrice = await Marketplace.tokenPriceUSD(1);
+        const tokenPrice = await Marketplace.tokenPriceFiat(1);
         expect(tokenPrice).to.equal(0);
       });
     });
@@ -351,7 +356,7 @@ describe("MarketPlace contract", function () {
       });
 
       it("Should check token price after selling", async function () {
-        const price = await Marketplace.tokenPriceUSD(1);
+        const price = await Marketplace.tokenPriceFiat(1);
         expect(price).to.equal(0);
       });
     });
@@ -830,12 +835,12 @@ describe("MarketPlace contract", function () {
       });
 
       it("Should check token price after selling", async function () {
-        const price = await Marketplace.tokenPriceUSD(1);
+        const price = await Marketplace.tokenPriceFiat(1);
         expect(price).to.equal(0);
       });
 
       it("Should check token price after selling - receiverId", async function () {
-        const price = await Marketplace.tokenPriceUSD(2);
+        const price = await Marketplace.tokenPriceFiat(2);
         expect(price).to.equal(0);
       });
     });

@@ -20,6 +20,10 @@ describe("DbiliaToken contract", function () {
   const realPasscode = "protected";
   const passcode = ethers.utils.hexZeroPad(ethers.utils.formatBytes32String(realPasscode), 32)
 
+  // Set to true for Momenta app with base currency of EUR. Any functions of "WithUSD" will be meant for "WithEUR"
+  // Set to false for Dbilia app with base currency of USD
+  const useEUR = false;
+
   beforeEach(async function () {
     DbiliaToken = await ethers.getContractFactory("DbiliaToken");
     WethTest = await ethers.getContractFactory("WethTest");
@@ -27,12 +31,13 @@ describe("DbiliaToken contract", function () {
     [ceo, dbilia, user1, user2, ...addrs] = await ethers.getSigners();
     DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent);
     WethTest = await WethTest.deploy(wethInitialSupply);
-    Marketplace = await Marketplace.deploy(DbiliaToken.address, WethTest.address);
+    Marketplace = await Marketplace.deploy(DbiliaToken.address, WethTest.address, useEUR);
   });
 
   beforeEach(async function () {
     await DbiliaToken.changeDbiliaTrust(dbilia.address);
     await DbiliaToken.changeMarketplace(Marketplace.address);
+    await DbiliaToken.changeDbiliaFee(dbilia.address);
   });
 
   describe("Deployment", function () {
@@ -58,6 +63,9 @@ describe("DbiliaToken contract", function () {
       it("Should set the right Marketplace account", async function () {
         expect(await DbiliaToken.marketplace()).to.equal(Marketplace.address);
       });
+      it("Should set the right DbiliaFee account", async function () {
+        expect(await DbiliaToken.dbiliaFee()).to.equal(dbilia.address);
+      });
     });
 
     describe("Fail", function () {
@@ -73,7 +81,12 @@ describe("DbiliaToken contract", function () {
       });
       it("Should fail if other accounts are trying to change marketplace account", async function () {
         await expect(
-          DbiliaToken.connect(user2).changeDbiliaTrust(user2.address)
+          DbiliaToken.connect(user2).changeMarketplace(user2.address)
+        ).to.be.revertedWith("caller is not CEO");
+      });
+      it("Should fail if other accounts are trying to change dbilia fee account", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).changeDbiliaFee(user1.address)
         ).to.be.revertedWith("caller is not CEO");
       });
     });

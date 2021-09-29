@@ -15,16 +15,21 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     DbiliaToken public dbiliaToken;
     IERC20 public weth;
 
-    mapping (uint256 => uint256) public tokenPriceUSD;
+    // tokenId => price in fiat (USD or EUR)
+    mapping (uint256 => uint256) public tokenPriceFiat;
     mapping (uint256 => bool) public tokenOnAuction;
 
     // Used to protect public function
     bytes32 internal passcode = "protected";
 
+    // Set to true for Momenta app with base currency of EUR. Any functions of "WithUSD" will be meant for "WithEUR"
+    // Set to false for Dbilia app with base currency of USD
+    bool public useEUR;
+
     // Events
     event SetForSale(
         uint256 _tokenId,
-        uint256 _priceUSD,
+        uint256 _priceFiat,
         bool _auction,
         address indexed _seller,
         uint256 _timestamp
@@ -85,11 +90,12 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         _;
     }
 
-    constructor(address _tokenAddress, address _wethAddress)
+    constructor(address _tokenAddress, address _wethAddress, bool _useEUR)
         EIP712Base(DOMAIN_NAME, DOMAIN_VERSION, block.chainid)
     {
         dbiliaToken = DbiliaToken(_tokenAddress);
         weth = IERC20(_wethAddress);
+        useEUR = _useEUR;
     }
 
     /**
@@ -114,20 +120,20 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * 6. if not, w3user has to trigger setApprovalForAll() with his ETH to trigger setForSaleWithUSD()
     *
     * @param _tokenId token id to sell
-    * @param _priceUSD price in USD to sell
+    * @param _priceFiat price in USD or in EURto sell
     * @param _auction on auction or not
     */
-    function setForSaleWithUSD(uint256 _tokenId, uint256 _priceUSD, bool _auction) public isActive onlyDbilia {
+    function setForSaleWithUSD(uint256 _tokenId, uint256 _priceFiat, bool _auction) public isActive onlyDbilia {
         require(_tokenId > 0, "token id is zero or lower");
-        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
-        require(_priceUSD > 0, "price is zero or lower");
+        require(tokenPriceFiat[_tokenId] == 0, "token has already been set for sale");
+        require(_priceFiat > 0, "price is zero or lower");
         require(
             dbiliaToken.isApprovedForAll(dbiliaToken.dbiliaTrust(), address(this)),
             "Dbilia did not approve Marketplace contract"
         );
-        tokenPriceUSD[_tokenId] = _priceUSD;
+        tokenPriceFiat[_tokenId] = _priceFiat;
         tokenOnAuction[_tokenId] = _auction;
-        emit SetForSale(_tokenId, _priceUSD, _auction, msgSender(), block.timestamp);
+        emit SetForSale(_tokenId, _priceFiat, _auction, msgSender(), block.timestamp);
     }
 
   /**
@@ -137,12 +143,12 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     */
     function removeSetForSaleUSD(uint256 _tokenId) public isActive onlyDbilia {
         require(_tokenId > 0, "token id is zero or lower");
-        require(tokenPriceUSD[_tokenId] > 0, "token has not set for sale");
+        require(tokenPriceFiat[_tokenId] > 0, "token has not set for sale");
         require(
             dbiliaToken.isApprovedForAll(dbiliaToken.dbiliaTrust(), address(this)),
             "Dbilia did not approve Marketplace contract"
         );
-        tokenPriceUSD[_tokenId] = 0;
+        tokenPriceFiat[_tokenId] = 0;
         tokenOnAuction[_tokenId] = false;
         emit SetForSale(_tokenId, 0, false, msgSender(), block.timestamp);
     }
@@ -155,21 +161,21 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * 2. if not, trigger setApprovalForAll() from w3user
     *
     * @param _tokenId token id to sell
-    * @param _priceUSD price in USD to sell
+    * @param _priceFiat price in USD to sell
     * @param _auction on auction or not
     */
-    function setForSaleWithETH(uint256 _tokenId, uint256 _priceUSD, bool _auction, bytes32 _passcode) public isActive verifyPasscode(_passcode) {
+    function setForSaleWithETH(uint256 _tokenId, uint256 _priceFiat, bool _auction, bytes32 _passcode) public isActive verifyPasscode(_passcode) {
         require(_tokenId > 0, "token id is zero or lower");
-        require(tokenPriceUSD[_tokenId] == 0, "token has already been set for sale");
-        require(_priceUSD > 0, "price is zero or lower");
+        require(tokenPriceFiat[_tokenId] == 0, "token has already been set for sale");
+        require(_priceFiat > 0, "price is zero or lower");
         address owner = dbiliaToken.ownerOf(_tokenId);
         require(owner == msgSender(), "caller is not a token owner");
         require(dbiliaToken.isApprovedForAll(msgSender(), address(this)),
                 "token owner did not approve Marketplace contract"
         );
-        tokenPriceUSD[_tokenId] = _priceUSD;
+        tokenPriceFiat[_tokenId] = _priceFiat;
         tokenOnAuction[_tokenId] = _auction;
-        emit SetForSale(_tokenId, _priceUSD, _auction, msgSender(), block.timestamp);
+        emit SetForSale(_tokenId, _priceFiat, _auction, msgSender(), block.timestamp);
     }
 
   /**
@@ -179,13 +185,13 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     */
     function removeSetForSaleETH(uint256 _tokenId, bytes32 _passcode) public isActive verifyPasscode(_passcode){
         require(_tokenId > 0, "token id is zero or lower");
-        require(tokenPriceUSD[_tokenId] > 0, "token has not set for sale");
+        require(tokenPriceFiat[_tokenId] > 0, "token has not set for sale");
         address owner = dbiliaToken.ownerOf(_tokenId);
         require(owner == msgSender(), "caller is not a token owner");
         require(dbiliaToken.isApprovedForAll(msgSender(), address(this)),
                 "token owner did not approve Marketplace contract"
         );
-        tokenPriceUSD[_tokenId] = 0;
+        tokenPriceFiat[_tokenId] = 0;
         tokenOnAuction[_tokenId] = false;
         emit SetForSale(_tokenId, 0, false, msgSender(), block.timestamp);
     }
@@ -198,14 +204,14 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * For NON-AUCTION
     * 1. call getTokenOwnership() to check whether seller is w2 or w3user holding the token
     * 2. if seller is w3user, call ownerOf() to check seller still holds the token
-    * 3. call tokenPriceUSD() to get the price of token
+    * 3. call tokenPriceFiat() to get the price of token
     * 4. buyer pays 2.5% fee
     * 5. buyer pays gas fee
     * 6. check buyer paid in correct amount of USD (NFT price + 2.5% fee + gas fee)
     *
     * After purchase
     * 1. increase the seller's internal USD wallet balance
-    *    - seller receives = (tokenPriceUSD - seller 2.5% fee - royalty)
+    *    - seller receives = (tokenPriceFiat - seller 2.5% fee - royalty)
     *    - for royalty, use royaltyReceivers(tokenId)
     * 2. increase the royalty receiver's internal USD wallet balance
     *    - for royalty, use royaltyReceivers(tokenId)
@@ -218,7 +224,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         isActive
         onlyDbilia
     {
-        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
+        require(tokenPriceFiat[_tokenId] > 0, "seller is not selling this token");
         require(bytes(_buyerId).length > 0, "buyerId Id is empty");
 
         address owner = dbiliaToken.ownerOf(_tokenId);
@@ -234,7 +240,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         }
 
         dbiliaToken.changeTokenOwnership(_tokenId, address(0), _buyerId);
-        tokenPriceUSD[_tokenId] = 0;
+        tokenPriceFiat[_tokenId] = 0;
         tokenOnAuction[_tokenId] = false;
 
         emit PurchaseWithUSD(
@@ -256,14 +262,14 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * For NON-AUCTION
     * 1. call getTokenOwnership() to check whether seller is w2 or w3user holding the token
     * 2. if seller is w3user, call ownerOf() to check seller still holds the token
-    * 3. call tokenPriceUSD() to get the price of token
+    * 3. call tokenPriceFiat() to get the price of token
     * 4. buyer pays 2.5% fee
     * 5. buyer pays gas fee
     * 6. check buyer paid in correct amount of USD (NFT price + 2.5% fee + gas fee)
     *
     * After purchase
     * 1. increase the seller's internal USD wallet balance
-    *    - seller receives = (tokenPriceUSD - seller 2.5% fee - royalty)
+    *    - seller receives = (tokenPriceFiat - seller 2.5% fee - royalty)
     *    - for royalty, use royaltyReceivers(tokenId)
     * 2. increase the royalty receiver's internal USD wallet balance
     *    - for royalty, use royaltyReceivers(tokenId)
@@ -276,7 +282,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         isActive
         onlyDbilia
     {
-        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
+        require(tokenPriceFiat[_tokenId] > 0, "seller is not selling this token");
         require(_buyer != address(0), "buyer address is empty");
 
         address owner = dbiliaToken.ownerOf(_tokenId);
@@ -293,7 +299,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         }
 
         dbiliaToken.changeTokenOwnership(_tokenId, _buyer, "");
-        tokenPriceUSD[_tokenId] = 0;
+        tokenPriceFiat[_tokenId] = 0;
         tokenOnAuction[_tokenId] = false;
 
         emit PurchaseWithUSD(
@@ -315,7 +321,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * For NON-AUCTION
     * 1. call getTokenOwnership() to check whether seller is w2 or w3user holding the token
     * 2. if seller is w3user, call ownerOf() to check seller still holds the token
-    * 3. call tokenPriceUSD() to get the price of token
+    * 3. call tokenPriceFiat() to get the price of token
     * 4. do conversion and calculate how much buyer needs to pay in ETH
     * 5. add up buyer fee 2.5% in msg.value
     *
@@ -330,7 +336,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * @param _tokenId token id to buy
     */
     function purchaseWithETHw3user(uint256 _tokenId, uint256 wethAmount, bytes32 _passcode) public isActive verifyPasscode(_passcode) {
-        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
+        require(tokenPriceFiat[_tokenId] > 0, "seller is not selling this token");
         // only non-auction items can be purchased from w3user
         require(tokenOnAuction[_tokenId] == false, "this token is on auction");
 
@@ -352,7 +358,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         }
 
         dbiliaToken.changeTokenOwnership(_tokenId, msgSender(), "");
-        tokenPriceUSD[_tokenId] = 0;
+        tokenPriceFiat[_tokenId] = 0;
         tokenOnAuction[_tokenId] = false;
 
         uint256 fee = _payBuyerSellerFee(wethAmount);
@@ -382,7 +388,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * For AUCTION
     * 1. call getTokenOwnership() to check whether seller is w2 or w3user holding the token
     * 2. if seller is w3user, call ownerOf() to check seller still holds the token
-    * 3. call tokenPriceUSD() to get the price of token
+    * 3. call tokenPriceFiat() to get the price of token
     * 4. buyer pays 2.5% fee
     * 5. buyer pays gas fee
     * 6. check buyer paid in correct amount of USD (NFT price + 2.5% fee + gas fee)
@@ -391,14 +397,14 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * 1. auction history records bidAmount, creatorReceives and sellerReceives
     *
     * @param _tokenId token id to buy
-    * @param _bidPriceUSD bid amount in USD
+    * @param _bidPriceFiat bid amount in USD or in EUR
     */
-    function placeBidWithETHw3user(uint256 _tokenId, uint256 _bidPriceUSD, uint256 wethAmount, bytes32 _passcode) public isActive verifyPasscode(_passcode) {
-        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
+    function placeBidWithETHw3user(uint256 _tokenId, uint256 _bidPriceFiat, uint256 wethAmount, bytes32 _passcode) public isActive verifyPasscode(_passcode) {
+        require(tokenPriceFiat[_tokenId] > 0, "seller is not selling this token");
         // only non-auction items can be purchased from w3user
         require(tokenOnAuction[_tokenId] == true, "this token is not on auction");
 
-        _validateBidAmount(_bidPriceUSD, wethAmount);
+        _validateBidAmount(_bidPriceFiat, wethAmount);
 
         weth.safeTransferFrom(msgSender(), address(this), wethAmount);
 
@@ -444,7 +450,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         isActive
         onlyDbilia
     {
-        require(tokenPriceUSD[_tokenId] > 0, "seller is not selling this token");
+        require(tokenPriceFiat[_tokenId] > 0, "seller is not selling this token");
         // only non-auction items can be purchased from w3user
         require(tokenOnAuction[_tokenId] == true, "this token is not on auction");
         require(
@@ -476,7 +482,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         }
 
         dbiliaToken.changeTokenOwnership(_tokenId, w3user ? _receiver : address(0), w3user ? "" : _receiverId);
-        tokenPriceUSD[_tokenId] = 0;
+        tokenPriceFiat[_tokenId] = 0;
         tokenOnAuction[_tokenId] = false;
 
         emit ClaimAuctionWinner(
@@ -487,32 +493,65 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         );
     }
 
+    function _eur2Usd(uint256 _usdAmount) private view returns (uint256) {
+        return (_usdAmount * uint256(getThePriceEurUsd())) / 10**8;
+    }
+
+    // For purchase, Frontend calls this function to get the token price in WETH amount
+    // instead of manual converting from fiat to WETH
+    function getTokenPriceInWethAmountForPurchase(uint256 _tokenId) public view returns (uint256) {
+        uint256 tokenPrice = tokenPriceFiat[_tokenId];
+        
+        // For Momenta, tokenPriceFiat is in EUR that needs to be converted to USD
+        if (useEUR) {
+            tokenPrice = _eur2Usd(tokenPrice);
+        }
+
+        int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
+        uint256 buyerFee = tokenPrice.mul(dbiliaToken.feePercent()).div(1000);
+        uint256 buyerTotal = tokenPrice.add(buyerFee) * 10**18;
+        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
+
+        return buyerTotalToWei;
+    }
+
   /**
     * Validate user purchasing in ETH matches with USD conversion using chainlink
     * checks buyer fee of the token price as well (i.e. 2.5%)
     *
     * @param _tokenId token id
     */
-    function _validateAmount(uint256 _tokenId, uint256 wethAmount) private {
-        uint256 tokenPrice = tokenPriceUSD[_tokenId];
-        int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
-        uint256 buyerFee = tokenPrice.mul(dbiliaToken.feePercent()).div(1000);
-        uint256 buyerTotal = tokenPrice.add(buyerFee) * 10**18;
-        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
+    function _validateAmount(uint256 _tokenId, uint256 wethAmount) private view {
+        uint256 buyerTotalToWei = getTokenPriceInWethAmountForPurchase(_tokenId);
         require(wethAmount >= buyerTotalToWei, "not enough of ETH being sent");
+    }
+
+    // For bid, Frontend calls this function to get the bid price in WETH amount
+    // instead of manual converting from fiat to WETH
+    function getBidPriceInWethAmountForAuction(uint256 _bidPriceFiat) public view returns (uint256) {
+        uint256 bidPrice = _bidPriceFiat;
+        
+        // For Momenta, bidPrice is in EUR that needs to be converted to USD
+        if (useEUR) {
+            bidPrice = _eur2Usd(bidPrice);
+        }
+
+        int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
+        uint256 buyerFee = bidPrice.mul(dbiliaToken.feePercent()).div(1000);
+        uint256 buyerTotal = bidPrice.add(buyerFee) * 10**18;
+        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
+        
+        return buyerTotalToWei;
     }
 
   /**
     * Validate user bidding in ETH matches with USD conversion using chainlink
     * checks buyer fee of the token price as well (i.e. 2.5%)
     *
-    * @param _bidPriceUSD bidding price in usd
+    * @param _bidPriceFiat bidding price in usd
     */
-    function _validateBidAmount(uint256 _bidPriceUSD, uint256 wethAmount) private {
-        int256 currentPriceOfETHtoUSD = getCurrentPriceOfETHtoUSD();
-        uint256 buyerFee = _bidPriceUSD.mul(dbiliaToken.feePercent()).div(1000);
-        uint256 buyerTotal = _bidPriceUSD.add(buyerFee) * 10**18;
-        uint256 buyerTotalToWei = buyerTotal.div(uint256(currentPriceOfETHtoUSD));
+    function _validateBidAmount(uint256 _bidPriceFiat, uint256 wethAmount) private view {
+        uint256 buyerTotalToWei = getBidPriceInWethAmountForAuction(_bidPriceFiat);
         require(wethAmount >= buyerTotalToWei, "not enough of ETH being sent");
     }
 
@@ -575,7 +614,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     *
     */
     function getCurrentPriceOfETHtoUSD() public view returns (int256) {
-        return getThePrice() / 10 ** 8;
+        return getThePriceEthUsd() / 10 ** 8;
     }
 
     function setPasscode(bytes32 passcode_) external {
