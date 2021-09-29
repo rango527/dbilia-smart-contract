@@ -10,7 +10,7 @@ async function main() {
   // manually to make sure everything is compiled
   // await hre.run('compile');
 
-  if (!useEUR) {
+  if (useEUR === null) {
     throw new Error("Missing specification of useEUR");
   }
 

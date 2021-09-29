@@ -34,7 +34,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         address indexed _seller,
         uint256 _timestamp
     );
-    event PurchaseWithUSD(
+    event PurchaseWithFiat(
         uint256 _tokenId,
         address indexed _buyer,
         string _buyerId,
@@ -103,7 +103,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         - When w2 or w3user wants to put it up for sale
         - trigger getTokenOwnership() by passing in tokenId and find if it belongs to w2 or w3user
         - if w2 or w3user wants to pay in USD, they pay gas fee to Dbilia first
-        - then Dbilia triggers setForSaleWithUSD for them
+        - then Dbilia triggers setForSaleWithFiat for them
         - if w3user wants to pay in ETH they can trigger setForSaleWithETH,
         - but msgSender() must have the ownership of token
      */
@@ -117,13 +117,13 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * 3. seller pays gas fee in USD
     * 4. trigger getTokenOwnership() and if tokenId belongs to w3user,
     * 5. call isApprovedForAll() first to check whether w3user has approved the contract on his behalf
-    * 6. if not, w3user has to trigger setApprovalForAll() with his ETH to trigger setForSaleWithUSD()
+    * 6. if not, w3user has to trigger setApprovalForAll() with his ETH to trigger setForSaleWithFiat()
     *
     * @param _tokenId token id to sell
     * @param _priceFiat price in USD or in EURto sell
     * @param _auction on auction or not
     */
-    function setForSaleWithUSD(uint256 _tokenId, uint256 _priceFiat, bool _auction) public isActive onlyDbilia {
+    function setForSaleWithFiat(uint256 _tokenId, uint256 _priceFiat, bool _auction) public isActive onlyDbilia {
         require(_tokenId > 0, "token id is zero or lower");
         require(tokenPriceFiat[_tokenId] == 0, "token has already been set for sale");
         require(_priceFiat > 0, "price is zero or lower");
@@ -141,7 +141,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     *
     * @param _tokenId token id to remove
     */
-    function removeSetForSaleUSD(uint256 _tokenId) public isActive onlyDbilia {
+    function removeSetForSaleFiat(uint256 _tokenId) public isActive onlyDbilia {
         require(_tokenId > 0, "token id is zero or lower");
         require(tokenPriceFiat[_tokenId] > 0, "token has not set for sale");
         require(
@@ -219,7 +219,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * @param _tokenId token id to buy
     * @param _buyerId buyer's w2user internal id
     */
-    function purchaseWithUSDw2user(uint256 _tokenId, string memory _buyerId)
+    function purchaseWithFiatw2user(uint256 _tokenId, string memory _buyerId)
         public
         isActive
         onlyDbilia
@@ -243,7 +243,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         tokenPriceFiat[_tokenId] = 0;
         tokenOnAuction[_tokenId] = false;
 
-        emit PurchaseWithUSD(
+        emit PurchaseWithFiat(
             _tokenId,
             address(0),
             _buyerId,
@@ -277,7 +277,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
     * @param _tokenId token id to buy
     * @param _buyer buyer's w3user id
     */
-    function purchaseWithUSDw3user(uint256 _tokenId, address _buyer)
+    function purchaseWithFiatw3user(uint256 _tokenId, address _buyer)
         public
         isActive
         onlyDbilia
@@ -302,7 +302,7 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         tokenPriceFiat[_tokenId] = 0;
         tokenOnAuction[_tokenId] = false;
 
-        emit PurchaseWithUSD(
+        emit PurchaseWithFiat(
             _tokenId,
             _buyer,
             "",
