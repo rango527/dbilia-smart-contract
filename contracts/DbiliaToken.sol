@@ -316,7 +316,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     returns (bool)
   {
     require(
-      _feePercent > 0 && _feePercent < 1000,
+      _feePercent > 0 && _feePercent <= 100,
       "flat fee is empty or exceeded max"
     );
     feePercent = _feePercent;

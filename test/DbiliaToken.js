@@ -570,9 +570,9 @@ describe("DbiliaToken contract", function () {
           DbiliaToken.connect(user1).setFlatFee(newFeePercent)
         ).to.be.revertedWith("caller is not CEO");
       });
-      it("Should fail if fee percent is greater than 1000(100%)", async function () {
+      it("Should fail if fee percent is greater than 100(10%)", async function () {
         await expect(
-          DbiliaToken.setFlatFee(1000)
+          DbiliaToken.setFlatFee(101)
         ).to.be.revertedWith("flat fee is empty or exceeded max")
       });
     });
