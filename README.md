@@ -11,6 +11,7 @@
 ## Run unit-test
 
 - Run all: `npm run test`
+- Run coverage: `npm run test-coverage`
 - Run only DbiliaToken test: `npm run test-token`
 - Run only Marketplace test: `npm run test-marketplace`
 - Run only WethReceiver test: `npm run test-wethreceiver`

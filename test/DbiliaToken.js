@@ -151,6 +151,19 @@ describe("DbiliaToken contract", function () {
     });
 
     describe("Fail", function () {
+      it("Should fail if the contract is inactive", async function () {
+        await DbiliaToken.updateMaintaining(true);
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
+            royaltyReceiverId,
+            royaltyPercentage,
+            minterId,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("it's currently maintaining");
+      });
       it("Should fail if royaltyReceiverId is missing", async function () {
         await expect(
           DbiliaToken.connect(dbilia).mintWithFiatw2user(
@@ -162,6 +175,18 @@ describe("DbiliaToken contract", function () {
             tokenURI
           )
         ).to.be.revertedWith("royalty receiver id is empty");
+      });
+      it("Should fail if royaltyPercentage is greater than 99(max)", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithFiatw2user(
+            royaltyReceiverId,
+            100,
+            minterId,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("royalty percentage is empty or exceeded max");
       });
       it("Should fail if minterId is missing", async function () {
         await expect(
@@ -296,6 +321,18 @@ describe("DbiliaToken contract", function () {
           )
         ).to.be.revertedWith("royalty receiver id is empty");
       });
+      it("Should fail if royaltyPercentage is greater than 99(max)", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithFiatw3user(
+            royaltyReceiverId,
+            100,
+            user1.address,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("royalty percentage is empty or exceeded max");
+      });
       it("Should fail if minter address is missing", async function () {
         await expect(
           DbiliaToken.connect(dbilia).mintWithFiatw2user(
@@ -423,6 +460,18 @@ describe("DbiliaToken contract", function () {
           )
         ).to.be.revertedWith("royalty receiver id is empty");
       });
+      it("Should fail if royaltyPercentage is greater than 99(max)", async function () {
+        await expect(
+          DbiliaToken.connect(user1).mintWithETH(
+            royaltyReceiverId,
+            100,
+            productId,
+            edition,
+            tokenURI,
+            ethers.utils.keccak256(passcode + user1.address.substring(2))
+          )
+        ).to.be.revertedWith("royalty percentage is empty or exceeded max");
+      });
       it("Should fail if productId is missing", async function () {
         await expect(
           DbiliaToken.connect(user1).mintWithETH(
@@ -509,13 +558,23 @@ describe("DbiliaToken contract", function () {
       await DbiliaToken.setFlatFee(newFeePercent);
     });
 
-    it("Should change the flat fee", async function () {
-      expect(await DbiliaToken.feePercent()).to.equal(newFeePercent);
+    describe("Success", function () {
+      it("Should change the flat fee", async function () {
+        expect(await DbiliaToken.feePercent()).to.equal(newFeePercent);
+      });
     });
-    it("Should fail when other accounts trying to trigger", async function () {
-      await expect(
-        DbiliaToken.connect(user1).setFlatFee(27)
-      ).to.be.revertedWith("caller is not CEO");
+
+    describe("Fail", function () {
+      it("Should fail when other accounts trying to trigger", async function () {
+        await expect(
+          DbiliaToken.connect(user1).setFlatFee(newFeePercent)
+        ).to.be.revertedWith("caller is not CEO");
+      });
+      it("Should fail if fee percent is greater than 1000(100%)", async function () {
+        await expect(
+          DbiliaToken.setFlatFee(1000)
+        ).to.be.revertedWith("flat fee is empty or exceeded max")
+      });
     });
   });
 
@@ -544,22 +603,38 @@ describe("DbiliaToken contract", function () {
       ).withArgs(1, minterId2, "0x0000000000000000000000000000000000000000", block.timestamp+1);
     });
 
-    it("Should change ownership", async function () {
-      let tokenowner = await DbiliaToken.tokenOwners(1);
-      expect(tokenowner.w3owner).to.equal("0x0000000000000000000000000000000000000000");
-      expect(tokenowner.isW3user).to.equal(false);
-      expect(tokenowner.w2owner).to.equal(minterId2);
+    describe("Success", function () {
+      it("Should change ownership", async function () {
+        let tokenowner = await DbiliaToken.tokenOwners(1);
+        expect(tokenowner.w3owner).to.equal("0x0000000000000000000000000000000000000000");
+        expect(tokenowner.isW3user).to.equal(false);
+        expect(tokenowner.w2owner).to.equal(minterId2);
+      });
     });
-    it("Should fail when other accounts trying to trigger", async function () {
-      await expect(
-        DbiliaToken.connect(user1).changeTokenOwnership(1, "0x0000000000000000000000000000000000000000", minterId2)
-      ).to.be.revertedWith("caller is not one of Dbilia accounts");
+
+    describe("Fail", function () {
+      it("Should fail when other accounts trying to trigger", async function () {
+        await expect(
+          DbiliaToken.connect(user1).changeTokenOwnership(1, "0x0000000000000000000000000000000000000000", minterId2)
+        ).to.be.revertedWith("caller is not one of Dbilia accounts");
+      });
+      it("Should fail when none of _newOwner and _newOwnerId are passed", async function () {
+        await expect(
+          DbiliaToken.changeTokenOwnership(1, "0x0000000000000000000000000000000000000000", "")
+        ).to.be.revertedWith("either one of new owner should be passed in");
+      });
+      it("Should fail when both _newOwner and _newOwnerId are passed", async function () {
+        await expect(
+          DbiliaToken.changeTokenOwnership(1, user2.address, minterId2)
+        ).to.be.revertedWith("cannot pass in both new owner info");
+      });
     });
   });
 
   describe("Dbilia changes w3user ownership", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
     const royaltyPercentage = 5;
+    const minterId = "6099967cb589f4488cdb8105";
     const productId = "60ad481e27a4265b10d73b13";
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
@@ -573,19 +648,38 @@ describe("DbiliaToken contract", function () {
         edition,
         tokenURI
       );
-      await DbiliaToken.connect(dbilia).changeTokenOwnership(1, user2.address, "");
+      let block = await ethers.provider.getBlock('latest');
+      expect(await DbiliaToken.connect(dbilia).changeTokenOwnership(1, user2.address, "")).to.emit(
+        DbiliaToken,
+        "ChangeTokenOwnership"
+      ).withArgs(1, "", user2.address, block.timestamp+1);
     });
 
-    it("Should change ownership", async function () {
-      let tokenowner = await DbiliaToken.tokenOwners(1);
-      expect(tokenowner.w3owner).to.equal(user2.address);
-      expect(tokenowner.isW3user).to.equal(true);
-      expect(tokenowner.w2owner).to.equal('');
+    describe("Success", function () {
+      it("Should change ownership", async function () {
+        let tokenowner = await DbiliaToken.tokenOwners(1);
+        expect(tokenowner.w3owner).to.equal(user2.address);
+        expect(tokenowner.isW3user).to.equal(true);
+        expect(tokenowner.w2owner).to.equal('');
+      });
     });
-    it("Should fail when other accounts trying to trigger", async function () {
-      await expect(
-        DbiliaToken.connect(user1).changeTokenOwnership(1, user2.address, "")
-      ).to.be.revertedWith("caller is not one of Dbilia accounts");
+
+    describe("Fail", function () {
+      it("Should fail when other accounts trying to trigger", async function () {
+        await expect(
+          DbiliaToken.connect(user1).changeTokenOwnership(1, user2.address, "")
+        ).to.be.revertedWith("caller is not one of Dbilia accounts");
+      });
+      it("Should fail when none of _newOwner and _newOwnerId are passed", async function () {
+        await expect(
+          DbiliaToken.changeTokenOwnership(1, "0x0000000000000000000000000000000000000000", "")
+        ).to.be.revertedWith("either one of new owner should be passed in");
+      });
+      it("Should fail when both _newOwner and _newOwnerId are passed", async function () {
+        await expect(
+          DbiliaToken.changeTokenOwnership(1, user2.address, minterId)
+        ).to.be.revertedWith("cannot pass in both new owner info");
+      });
     });
   });
 
@@ -673,6 +767,64 @@ describe("DbiliaToken contract", function () {
           DbiliaToken.connect(dbilia).claimToken([3], user2.address)
         ).to.be.revertedWith("Dbilia wallet does not own this token");
       });
+    });
+  });
+
+  describe("checks whether product edition is minted", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 5;
+    const minterId = "6099967cb589f4488cdb8105";
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+
+    beforeEach(async function () {
+      await DbiliaToken.connect(dbilia).mintWithFiatw2user(
+        royaltyReceiverId,
+        royaltyPercentage,
+        minterId,
+        productId,
+        edition,
+        tokenURI
+      );
+    });
+
+    it("Should return true if product edition is already minted", async function () {
+      let isMinted = await DbiliaToken.isProductEditionMinted(productId, edition);
+      expect(isMinted).to.equal(true);
+    });
+
+    it("Should return false if product edition isn't minted", async function () {
+      let isMinted = await DbiliaToken.isProductEditionMinted(productId, edition + 1);
+      expect(isMinted).to.equal(false);
+    });
+  });
+
+  describe("get royalty receiver information of the token", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 5;
+    const minterId = "6099967cb589f4488cdb8105";
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+
+    beforeEach(async function () {
+      await DbiliaToken.connect(dbilia).mintWithFiatw2user(
+        royaltyReceiverId,
+        royaltyPercentage,
+        minterId,
+        productId,
+        edition,
+        tokenURI
+      );
+    });
+
+    it("Should return roaylty receiver id and percent", async function () {
+      [id, percent] = await DbiliaToken.getRoyaltyReceiver(1);
+      console.log(id);
+      console.log(percent);
+      expect(id).to.equal(royaltyReceiverId);
+      expect(percent).to.equal(royaltyPercentage);
     });
   });
 });
