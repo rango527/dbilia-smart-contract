@@ -108,4 +108,46 @@ describe("WethReceiver contract", function () {
       ).to.be.revertedWith("caller is not one of dbilia accounts");
     });
   });
+
+  describe("SendPayout WETH", function () {
+    const productId = "60ad481e27a4265b10d73b13";
+    const amount = BigNumber.from(0.001 * 1e18);
+
+    it("Beneficiary should receive the transferred amount", async function () {
+      await WethTest.connect(ceo).transfer(user.address, amount);
+      await WethTest.connect(user).approve(WethReceiver.address, amount);
+
+      expect(await WethReceiver.connect(user).receiveWeth(productId, amount))
+        .to.emit(WethReceiver, "ReceiveWeth")
+        .withArgs(user.address, productId, amount);
+
+      const beneficiaryBalanceBefore = await WethTest.balanceOf(
+        beneficiary.address
+      );
+
+      await WethTest.connect(beneficiary).approve(WethReceiver.address, amount);
+
+      await WethReceiver.connect(ceo).sendPayout(amount, user2.address);
+
+      const beneficiaryBalanceAfter = await WethTest.balanceOf(
+        beneficiary.address
+      );
+
+      expect(beneficiaryBalanceBefore - beneficiaryBalanceAfter).to.equal(
+        amount
+      );
+    });
+
+    it("Invalid amount should revert", async function () {
+      await expect(
+        WethReceiver.connect(ceo).sendPayout(0, WethReceiver.address)
+      ).to.be.revertedWith("WethReceiver: Invalid amount");
+    });
+
+    it("Unauthorized account setting the sendPayout should revert", async function () {
+      await expect(
+        WethReceiver.connect(user).sendPayout(amount, user2.address)
+      ).to.be.revertedWith("caller is not one of dbilia accounts");
+    });
+  });
 });

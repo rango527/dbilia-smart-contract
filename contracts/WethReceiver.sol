@@ -13,6 +13,7 @@ contract WethReceiver is EIP712MetaTransaction {
   address public beneficiary; // to receive user-transferred WETH
 
   event ReceiveWeth(address _from, string _productId, uint256 _amount);
+  event SendPayout(address _from, address _to, uint256 _amount);
 
   modifier isActive {
     require(!dbiliaToken.isMaintaining());
@@ -53,5 +54,12 @@ contract WethReceiver is EIP712MetaTransaction {
 
   function setBeneficiary(address _beneficiary) external onlyDbilia {
     beneficiary = _beneficiary;
+  }
+
+  function sendPayout(uint256 amount, address _receiver) external onlyDbilia {
+    require(amount > 0, "WethReceiver: Invalid amount");
+    weth.safeTransferFrom(beneficiary, _receiver, amount);
+
+    emit SendPayout(beneficiary, _receiver, amount);
   }
 }
