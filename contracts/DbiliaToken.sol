@@ -315,6 +315,10 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     onlyCEO
     returns (bool)
   {
+    require(
+      _feePercent > 0 && _feePercent <= 100,
+      "flat fee is empty or exceeded max"
+    );
     feePercent = _feePercent;
     return true;
   }
