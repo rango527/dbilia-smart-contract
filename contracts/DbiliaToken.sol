@@ -44,6 +44,18 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
   mapping (string => mapping(uint256 => uint256)) public productEditions;
 
   // Events
+  event BatchMintWithFiatw2user(
+    string _royaltyReceiverId,
+    uint16 _royaltyPercentage,
+    string _minterId,
+    string _productId,
+    uint256 _editionIdStart,
+    uint256 _editionIdEnd,
+    uint256 _mintedTokenIdStart,
+    uint256 _mintedTokenIdEnd,
+    uint256 _timestamp
+  );
+
   event MintWithFiatw2user(
     uint256 _tokenId,
     string _royaltyReceiverId,
@@ -146,6 +158,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     public
     isActive
     onlyDbilia
+    returns (uint256)
   {
     require(bytes(_royaltyReceiverId).length > 0, "royalty receiver id is empty");
     require(
@@ -182,6 +195,82 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     _setTokenURI(newTokenId, _tokenURI);
 
     emit MintWithFiatw2user(newTokenId, _royaltyReceiverId, _royaltyPercentage, _minterId, _productId, _edition, block.timestamp);
+    
+    return newTokenId;
+  }
+
+  /**
+    * Batch mint of the same product for multiple editions
+  
+    * @param _royaltyReceiverId internal id of creator of card
+    * @param _royaltyPercentage creator of card's royalty %
+    * @param _minterId minter's internal id
+    * @param _productId product id
+    * @param _editionIdStart start Id of the edition to be minted
+    * @param _editionIdEnd end Id of the edition to be minted
+    * @param _tokenURI token uri stored in IPFS
+    */
+  function batchMintWithFiatw2user(
+    string memory _royaltyReceiverId,
+    uint16 _royaltyPercentage,
+    string memory _minterId,
+    string memory _productId,
+    uint256 _editionIdStart,
+    uint256 _editionIdEnd,
+    string memory _tokenURI
+  )
+    public
+    isActive
+    onlyDbilia
+  {
+    require(bytes(_royaltyReceiverId).length > 0, "royalty receiver id is empty");
+    require(
+      _royaltyPercentage >= 0 && _royaltyPercentage <= ROYALTY_MAX,
+      "royalty percentage is empty or exceeded max"
+    );
+    require(bytes(_minterId).length > 0, "minter id is empty");
+    require(bytes(_productId).length > 0, "product id is empty");
+
+    require(bytes(_tokenURI).length > 0, "token uri is empty");
+
+    require(_editionIdStart <= _editionIdEnd, "invalid editionIdStart or editionIdEnd");
+
+    bool mintedTokenIdStartAssigned = false;
+    uint256 mintedTokenIdStart = 0;
+    uint256 mintedTokenIdEnd = 0;
+    uint256 mintedTokenId;
+
+    for (uint256 i = _editionIdStart; i <= _editionIdEnd; i++) {
+      // Let the whole batch-mint tx reverted if any of the product edition has already been minted
+      // to ensure integrity of the minted tokenIds
+      mintedTokenId = mintWithFiatw2user(
+        _royaltyReceiverId, 
+        _royaltyPercentage, 
+        _minterId, 
+        _productId, 
+        i, 
+        _tokenURI
+      );
+
+      // Assign "mintedTokenIdStart" only once
+      if (mintedTokenIdStartAssigned == false) {
+        mintedTokenIdStart = mintedTokenId;
+        mintedTokenIdStartAssigned = true;
+      }
+
+      mintedTokenIdEnd = mintedTokenId;
+    }
+
+    emit BatchMintWithFiatw2user(
+      _royaltyReceiverId, 
+      _royaltyPercentage, 
+      _minterId, 
+      _productId, 
+      _editionIdStart, 
+      _editionIdEnd,
+      mintedTokenIdStart,
+      mintedTokenIdEnd,
+      block.timestamp);
   }
 
 /**

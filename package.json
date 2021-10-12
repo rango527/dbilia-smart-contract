@@ -33,6 +33,8 @@
     "deploy-weth-receiver-matictestnet": "npx hardhat run --network matictestnet scripts/deploy_weth_receiver.js",
     "deploy-weth-receiver-maticmainnet": "npx hardhat run --network maticmainnet scripts/deploy_weth_receiver.js",
     "deploy-weth-receiver-hardhat": "npx hardhat run --network hardhat scripts/deploy_weth_receiver.js",
-    "create-keystore": "npx hardhat run --network hardhat scripts/create_keystore.js"
+    "create-keystore": "npx hardhat run --network hardhat scripts/create_keystore.js",
+    "batchmint-matictestnet": "npx hardhat run --network matictestnet scripts/batch_mint.js",
+    "checksyncing-matictestnet": "npx hardhat run --network matictestnet scripts/check_syncing.js"
   }
 }

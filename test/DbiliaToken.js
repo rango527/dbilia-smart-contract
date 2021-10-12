@@ -251,6 +251,175 @@ describe("DbiliaToken contract", function () {
     });
   });
 
+  describe("w2user is batch minting with Fiat", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 5;
+    const minterId = "6099967cb589f4488cdb8105";
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const editionIdStart = 1;
+    const editionIdEnd = 100;
+    const editionAmount = editionIdEnd - editionIdStart + 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+
+    beforeEach(async function () {
+      let block = await ethers.provider.getBlock('latest');
+      let tokenIdStart = await DbiliaToken.totalSupply().then(res => +res.toString());
+      tokenIdStart += 1;
+      const tokenIdEnd = tokenIdStart + editionAmount - 1;
+      
+      expect(await DbiliaToken.connect(dbilia).batchMintWithFiatw2user(
+        royaltyReceiverId,
+        royaltyPercentage,
+        minterId,
+        productId,
+        editionIdStart,
+        editionIdEnd,
+        tokenURI
+      )).to.emit(
+        DbiliaToken,
+        "BatchMintWithFiatw2user"
+      ).withArgs(
+        royaltyReceiverId, 
+        royaltyPercentage, 
+        minterId, 
+        productId, 
+        editionIdStart, 
+        editionIdEnd,
+        tokenIdStart,
+        tokenIdEnd,
+        block.timestamp+1);
+    });
+
+    describe("Success", function () {
+      it("Should create a as many tokens as specified", async function () {
+        const balance = await DbiliaToken.balanceOf(dbilia.address);
+        const owner = await DbiliaToken.ownerOf(1);
+        expect(balance.toString()).to.equal(`${editionAmount}`);
+        expect(owner).to.equal(dbilia.address);
+      });
+      it("Should track the creator of card", async function () {
+        let creator = await DbiliaToken.royaltyReceivers(1);
+        expect(creator.receiverId).to.equal(
+          royaltyReceiverId
+        );
+        expect(creator.percentage).to.equal(
+          royaltyPercentage
+        );
+      });
+      it("Should track the owner of token", async function () {
+        let tokenowner = await DbiliaToken.tokenOwners(1);
+        expect(tokenowner.w3owner).to.equal("0x0000000000000000000000000000000000000000");
+        expect(tokenowner.isW3user).to.equal(false);
+        expect(tokenowner.w2owner).to.equal(minterId);
+      });
+      it("Should map productId and editionIdStart to a new token", async function () {
+        expect(await DbiliaToken.productEditions(productId, editionIdStart)).to.equal(
+          1
+        );
+      });
+      it("Should create a token and Mocha keeps it", async function () {
+        expect(await DbiliaToken.ownerOf(1)).to.equal(dbilia.address);
+      });
+      it("Should keep a token uri", async function () {
+        expect(await DbiliaToken.tokenURI(1)).to.equal(tokenURI);
+      });
+    });
+
+    describe("Fail", function () {
+      it("Should fail if royaltyReceiverId is missing", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).batchMintWithFiatw2user(
+            "",
+            royaltyPercentage,
+            minterId,
+            productId,
+            editionIdStart,
+            editionIdEnd,
+            tokenURI
+          )
+        ).to.be.revertedWith("royalty receiver id is empty");
+      });
+      it("Should fail if minterId is missing", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).batchMintWithFiatw2user(
+            royaltyReceiverId,
+            royaltyPercentage,
+            "",
+            productId,
+            editionIdStart,
+            editionIdEnd,
+            tokenURI
+          )
+        ).to.be.revertedWith("minter id is empty");
+      });
+      it("Should fail if productId is missing", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).batchMintWithFiatw2user(
+            royaltyReceiverId,
+            royaltyPercentage,
+            minterId,
+            "",
+            editionIdStart,
+            editionIdEnd,
+            tokenURI
+          )
+        ).to.be.revertedWith("product id is empty");
+      });
+      it("Should fail if token uri is missing", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).batchMintWithFiatw2user(
+            royaltyReceiverId,
+            royaltyPercentage,
+            minterId,
+            productId,
+            editionIdStart,
+            editionIdEnd,
+            ""
+          )
+        ).to.be.revertedWith("token uri is empty");
+      });
+      it("Should revert if product edition has already been created", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).batchMintWithFiatw2user(
+          royaltyReceiverId,
+          royaltyPercentage,
+          minterId,
+          productId,
+          editionIdStart,
+          editionIdEnd,
+          tokenURI
+        )).to.be.revertedWith("product edition has already been created");
+      });
+      it("Should fail if other accounts tried to trigger", async function () {
+        await expect(
+          DbiliaToken.connect(user1).batchMintWithFiatw2user(
+            royaltyReceiverId,
+            royaltyPercentage,
+            minterId,
+            productId,
+            editionIdStart,
+            editionIdEnd,
+            tokenURI
+          )
+        ).to.be.revertedWith("caller is not one of Dbilia accounts");
+      });
+      it("Should fail if invalid editionIdStart or editionIdEnd", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).batchMintWithFiatw2user(
+            royaltyReceiverId,
+            royaltyPercentage,
+            minterId,
+            productId,
+            2,
+            1,
+            tokenURI
+          )
+        ).to.be.revertedWith("invalid editionIdStart or editionIdEnd");
+      });
+    });
+  });
+
   describe("w3user is minting with Fiat", function () {
     const royaltyReceiverId = "6097cf186eaef77320e81fcc";
     const royaltyPercentage = 5;
