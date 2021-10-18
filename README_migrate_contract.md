@@ -44,3 +44,40 @@ setProductEditionTokenId - tx:  0xdadab12a7d369e3baf5b2920693dd344ebad3fd70b2c8d
 tokenId:  3
 
 ```
+
+# Data migration of the current Marketplace contract to the new one
+
+1. Test script on Matic testnet
+
+  - Implemented in `scripts/migrate_marketplace.js`
+    - Input params:
+        - `MarketplaceContractAddress_current`
+        - `DbiliaTokenContractAddress_current`
+        - `DbiliaTokenContractAddress_new`
+
+  - Test scenario:
+    - Reference the current `Marketplace` contract
+    - Deploy new `Marketplace` contract
+    - Replicate data of the current `Marketplace` contract to the new one
+
+  - Cmd: `yarn migrate-marketplace-matictestnet`
+
+2. Log output
+
+```
+contractsTesting$ yarn migrate-marketplace-matictestnet
+yarn run v1.22.5
+warning package.json: No license field
+$ npx hardhat run --network matictestnet scripts/migrate_marketplace.js
+Current DbiliaToken contract - address:  0x92ffd3f6C549AC6f9ae5d995F92988a897C8BEa3 , totalSupply:  46
+New Marketplace contract - address:  0xF2a33979D7A6D170e3AF7Bcc62D00FEdBDDC3c48
+tokenId:  1
+tokenPriceFiat:  15
+setTokenPriceFiat - tx:  0x4f7f2e505ecd30786eaffbd6901f56e99c97548018ddb851c7a0886f3d6cfe27
+tokenOnAuction:  true
+setTokenOnAuction - tx:  0x9634ca82f9fd58f648527e2ae998b53db9992e49a663c9dcd997f4312fb4f6fb
+tokenId:  2
+tokenPriceFiat:  13
+setTokenPriceFiat - tx:  0x654457148a9876133e3ff3659b11afd6dd57ce01f5838489e53684cb526c9606
+tokenOnAuction:  true
+```

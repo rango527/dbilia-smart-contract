@@ -621,4 +621,31 @@ contract Marketplace is PriceConsumerV3, EIP712MetaTransaction {
         require(msgSender() == address(dbiliaToken));
         passcode = passcode_;
     }
+
+    /////// Data migration section //////////
+    /**
+        * Set price fiat info for a given tokenId
+        *
+        * @param _tokenId token id
+        * @param _priceFiat priceFiat
+        */
+    function setTokenPriceFiat(uint256 _tokenId, uint256 _priceFiat) 
+        external 
+        onlyDbilia 
+    {
+        tokenPriceFiat[_tokenId] = _priceFiat;
+    }
+
+    /**
+        * Set price fiat info for a given tokenId
+        *
+        * @param _tokenId token id
+        * @param _onAuction onAuction
+        */
+    function setTokenOnAuction(uint256 _tokenId, bool _onAuction) 
+        external 
+        onlyDbilia 
+    {
+        tokenOnAuction[_tokenId] = _onAuction;
+    }
 }

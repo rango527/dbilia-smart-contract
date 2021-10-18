@@ -36,6 +36,7 @@
     "create-keystore": "npx hardhat run --network hardhat scripts/create_keystore.js",
     "batchmint-matictestnet": "npx hardhat run --network matictestnet scripts/batch_mint.js",
     "checksyncing-matictestnet": "npx hardhat run --network matictestnet scripts/check_syncing.js",
-    "migrate-dbiliatoken-matictestnet": "npx hardhat run --network matictestnet scripts/migrate_dbiliatoken.js"
+    "migrate-dbiliatoken-matictestnet": "npx hardhat run --network matictestnet scripts/migrate_dbiliatoken.js",
+    "migrate-marketplace-matictestnet": "npx hardhat run --network matictestnet scripts/migrate_marketplace.js"
   }
 }
