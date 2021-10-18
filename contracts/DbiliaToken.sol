@@ -526,4 +526,65 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     passcode = passcode_;
     IMarketplace(marketplace).setPasscode(passcode_);
   }
+
+  /////// Data migration section //////////
+  function mintForDataMigration(address _to, string memory _tokenURI, uint256 _tokenId) 
+    external 
+    onlyDbilia 
+  {
+    _mint(_to, _tokenId);
+    _setTokenURI(_tokenId, _tokenURI);
+  }
+
+  /**
+    * Set royalty receiver info for a given tokenId
+    *
+    * @param _tokenId token id
+    * @param _percentage percentage
+    * @param _receiverId receiverId
+    */
+  function setRoyaltyReceiver(uint256 _tokenId, string memory _receiverId, uint16 _percentage) 
+    external 
+    onlyDbilia 
+  {
+    royaltyReceivers[_tokenId] = RoyaltyReceiver({
+      receiverId: _receiverId,
+      percentage: _percentage
+    });
+  }
+
+  /**
+    * Set royalty receiver info for a given tokenId
+    *
+    * @param _tokenId token id
+    * @param _isW3user isW3user
+    * @param _w3owner w3owner
+    * @param _w2owner w2owner
+    */
+  function setTokenOwner(uint256 _tokenId, bool _isW3user, address _w3owner, string memory _w2owner) 
+    external 
+    onlyDbilia 
+  {
+    tokenOwners[_tokenId] = TokenOwner({
+      isW3user: _isW3user,
+      w3owner: _w3owner,
+      w2owner: _w2owner
+    });
+  }
+
+  /**
+    * Set tokenId for a given _productId and _edition. The info of _productId and _edition is stored in DB
+    *
+    * @param _tokenId token id
+    * @param _productId _productId
+    * @param _edition _edition
+    */
+  function setProductEditionTokenId(uint256 _tokenId, string memory _productId, uint256 _edition) 
+    external 
+    onlyDbilia 
+  {
+    productEditions[_productId][_edition] = _tokenId;
+  }
+
+  /////////////////////////////////////////
 }
