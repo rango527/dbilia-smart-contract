@@ -2,7 +2,7 @@ const fs = require("fs");
 
 async function main() {
   const signers = await hre.ethers.getSigners();
-  const Dbilia = await hre.ethers.getContractFactory("DbiliaToken");  
+  const Dbilia = await hre.ethers.getContractFactory("DbiliaToken");
   const deployedAddress = fs.readFileSync('deployed_dbiliaToken_address', 'utf8');
   console.log(`deployed address: ${deployedAddress}`);
   console.log('--------------------------------------');
@@ -23,7 +23,7 @@ async function main() {
   //   const owner = await DbiliaToken.ownerOf(randomNum);
   //   console.log(`tokenId ${randomNum} owner ${owner}`);
   //   console.log('--------------------------------------');
-  // }  
+  // }
 }
 
 // We recommend this pattern to be able to use async/await everywhere

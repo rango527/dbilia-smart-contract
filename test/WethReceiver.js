@@ -32,8 +32,8 @@ describe("WethReceiver contract", function () {
     [ceo, dbilia, beneficiary, user, user2, ...addrs] =
       await ethers.getSigners();
 
-    DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent);
     WethTest = await WethTest.deploy(wethInitialSupply);
+    DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent, WethTest.address, beneficiary.address);
     WethReceiver = await WethReceiver.deploy(
       DbiliaToken.address,
       WethTest.address,

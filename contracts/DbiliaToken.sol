@@ -4,6 +4,8 @@ pragma solidity ^0.8.0;
 import "openzeppelin-solidity/contracts/token/ERC721/ERC721.sol";
 import "./ERC721URIStorageEnumerable.sol";
 import "openzeppelin-solidity/contracts/utils/Counters.sol";
+import "openzeppelin-solidity/contracts/utils/math/SafeMath.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./AccessControl.sol";
 //import "hardhat/console.sol";
 
@@ -20,6 +22,8 @@ interface IMarketplace {
 
 contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
   using Counters for Counters.Counter;
+  using SafeMath for uint256;
+  using SafeERC20 for IERC20;
 
   struct RoyaltyReceiver {
     uint16 percentage;
@@ -33,6 +37,9 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
   }
 
   Counters.Counter private _tokenIds;
+  IERC20 public weth; // WETH token contract
+  address public beneficiary; // to receive user-transferred WETH
+
   uint16 public constant ROYALTY_MAX = 99;
   uint16 public feePercent;
 
@@ -86,6 +93,16 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     uint256 _timestamp
   );
 
+  event MintWithETHAndPurchase(
+    uint256 _tokenId,
+    string _royaltyReceiverId,
+    uint16 _royaltyPercentage,
+    address indexed _minter,
+    string _productId,
+    uint256 _edition,
+    uint256 _timestamp
+  );
+
   event ChangeTokenOwnership(
     uint256 _tokenId,
     string _newOwnerId,
@@ -107,12 +124,16 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
   constructor(
     string memory _name,
     string memory _symbol,
-    uint16 _feePercent
+    uint16 _feePercent,
+    address _wethAddress,
+    address _beneficiaryAddress
   )
     ERC721(_name, _symbol)
     EIP712Base(DOMAIN_NAME, DOMAIN_VERSION, block.chainid)
     {
       feePercent = _feePercent;
+      weth = IERC20(_wethAddress);
+      beneficiary = _beneficiaryAddress;
     }
 
   // Over-ride _msgSender() function of contract Context inherited by ERC721
@@ -121,7 +142,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
   function _msgSender() internal view override returns (address sender) {
     return msgSender();
   }
-  
+
   // Apply "isMaintaining" flag for token transfer
   function _beforeTokenTransfer(
     address from,
@@ -391,6 +412,76 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     _setTokenURI(newTokenId, _tokenURI);
 
     emit MintWithETH(newTokenId, _royaltyReceiverId, _royaltyPercentage, _msgSender(), _productId, _edition, block.timestamp);
+  }
+
+  /**
+    * Minting paid with ETH and purchase from w3user
+    *
+    * @param _creatorAddress address of creator
+    * @param _validateAmount  paid in correct amount of weth
+    * @param _minter address of minter
+    * @param _royaltyReceiverId internal id of creator of card
+    * @param _royaltyPercentage creator of card's royalty %
+    * @param _productId product id
+    * @param _edition edition number
+    * @param _tokenURI token uri stored in IPFS
+    */
+  function mintWithETHAndPurchase(
+    address _creatorAddress,
+    uint256 _validateAmount,
+    address _minter,
+    string memory _royaltyReceiverId,
+    uint16 _royaltyPercentage,
+    string memory _productId,
+    uint256 _edition,
+    string memory _tokenURI
+  )
+    public
+    isActive
+    onlyDbilia
+  {
+    require(_creatorAddress != address(0x0), "creator address is empty");
+    require(_validateAmount > 0, "Invalid amount");
+    require(_minter != address(0x0), "minter address is empty");
+
+    require(bytes(_royaltyReceiverId).length > 0, "royalty receiver id is empty");
+    require(
+      _royaltyPercentage >= 0 && _royaltyPercentage <= ROYALTY_MAX,
+      "royalty percentage is empty or exceeded max"
+    );
+    require(bytes(_productId).length > 0, "product id is empty");
+    require(bytes(_tokenURI).length > 0, "token uri is empty");
+    require(
+      productEditions[_productId][_edition] == 0,
+      "product edition has already been created"
+    );
+
+    uint256 fee = _validateAmount.mul(feePercent).div(feePercent + 1000);
+
+    weth.safeTransferFrom(_minter, beneficiary, fee);
+    weth.safeTransferFrom(_minter, _creatorAddress, _validateAmount.sub(fee));
+
+    _tokenIds.increment();
+
+    uint256 newTokenId = _tokenIds.current();
+    // Track the creator of card
+    royaltyReceivers[newTokenId] = RoyaltyReceiver({
+      receiverId: _royaltyReceiverId,
+      percentage: _royaltyPercentage
+    });
+    // Track the owner of token
+    tokenOwners[newTokenId] = TokenOwner({
+      isW3user: true,
+      w3owner: _minter,
+      w2owner: ""
+    });
+    // productId and edition are mapped to new token
+    productEditions[_productId][_edition] = newTokenId;
+
+    _mint(_minter, newTokenId);
+    _setTokenURI(newTokenId, _tokenURI);
+
+    emit MintWithETHAndPurchase(newTokenId, _royaltyReceiverId, _royaltyPercentage, _minter, _productId, _edition, block.timestamp);
   }
 
   /**
