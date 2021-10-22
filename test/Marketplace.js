@@ -9,6 +9,7 @@ describe("MarketPlace contract", function () {
   let Marketplace;
   let ceo;
   let dbilia;
+  let beneficiary;
   let user1;
   let user2;
   let addrs;
@@ -27,9 +28,9 @@ describe("MarketPlace contract", function () {
     DbiliaToken = await ethers.getContractFactory("DbiliaToken");
     WethTest = await ethers.getContractFactory("WethTest");
     Marketplace = await ethers.getContractFactory("Marketplace");
-    [ceo, dbilia, user1, user2, ...addrs] = await ethers.getSigners();
-    DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent);
+    [ceo, dbilia, beneficiary, user1, user2, ...addrs] = await ethers.getSigners();
     WethTest = await WethTest.deploy(wethInitialSupply);
+    DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent, WethTest.address, beneficiary.address);
     Marketplace = await Marketplace.deploy(DbiliaToken.address, WethTest.address, useEUR);
   });
 
@@ -232,7 +233,7 @@ describe("MarketPlace contract", function () {
         ).to.be.revertedWith("seller is not selling this token");
       });
 
-      it("Should fail if byerId is missing", async function () {
+      it("Should fail if buyerId is missing", async function () {
         await expect(
           Marketplace.connect(dbilia).purchaseWithFiatw2user(1, "")
         ).to.be.revertedWith("buyerId Id is empty");

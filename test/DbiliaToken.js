@@ -8,8 +8,10 @@ describe("DbiliaToken contract", function () {
   var feePercent = 25; // 2.5%
   let DbiliaToken;
   let Marketplace;
+  let WethReceiver;
   let ceo;
   let dbilia;
+  let beneficiary;
   let user1;
   let user2;
   let addrs;
@@ -28,10 +30,16 @@ describe("DbiliaToken contract", function () {
     DbiliaToken = await ethers.getContractFactory("DbiliaToken");
     WethTest = await ethers.getContractFactory("WethTest");
     Marketplace = await ethers.getContractFactory("Marketplace");
-    [ceo, dbilia, user1, user2, ...addrs] = await ethers.getSigners();
-    DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent);
+    WethReceiver = await ethers.getContractFactory("WethReceiver");
+    [ceo, dbilia, beneficiary, user1, user2, ...addrs] = await ethers.getSigners();
     WethTest = await WethTest.deploy(wethInitialSupply);
+    DbiliaToken = await DbiliaToken.deploy(name, symbol, feePercent, WethTest.address, beneficiary.address);
     Marketplace = await Marketplace.deploy(DbiliaToken.address, WethTest.address, useEUR);
+    WethReceiver = await WethReceiver.deploy(
+      DbiliaToken.address,
+      WethTest.address,
+      beneficiary.address
+    );
   });
 
   beforeEach(async function () {
@@ -695,7 +703,7 @@ describe("DbiliaToken contract", function () {
             "reprotected"
           )
         ).to.be.revertedWith("caller is not CEO");
-        
+
         const newRealPasscode = "reprotected";
         expect(await DbiliaToken.connect(ceo).setPasscode(
           newRealPasscode
@@ -716,6 +724,213 @@ describe("DbiliaToken contract", function () {
           DbiliaToken,
           "MintWithETH"
         ).withArgs(2, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition + 1, block.timestamp+1);
+      });
+    });
+  });
+
+  describe("w3user is minting with ETH and purchase", function () {
+    const royaltyReceiverId = "6097cf186eaef77320e81fcc";
+    const royaltyPercentage = 5;
+    const productId = "60ad481e27a4265b10d73b13";
+    const edition = 1;
+    const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
+    const validateAmount = BigNumber.from((0.01025 * 10 ** 18).toString());
+
+    beforeEach(async function () {
+      let block = await ethers.provider.getBlock('latest');
+      const beneficiaryBalanceBefore = await WethTest.balanceOf(
+        beneficiary.address
+      );
+      const creatorBalanceBefore = await WethTest.balanceOf(
+        user2.address
+      );
+      await WethTest.connect(ceo).transfer(user1.address, validateAmount);
+      await WethTest.connect(user1).approve(DbiliaToken.address, validateAmount);
+
+      expect(await DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+        user2.address,
+        validateAmount,
+        user1.address,
+        royaltyReceiverId,
+        royaltyPercentage,
+        productId,
+        edition,
+        tokenURI
+      )).to.emit(
+        DbiliaToken,
+        "MintWithETHAndPurchase"
+      ).withArgs(1, royaltyReceiverId, royaltyPercentage, user1.address, productId, edition, block.timestamp+3);
+      const beneficiaryBalanceAfter = await WethTest.balanceOf(
+        beneficiary.address
+      );
+      const creatorBalanceAfter = await WethTest.balanceOf(
+        user2.address
+      );
+      const fee = validateAmount.mul(feePercent).div(feePercent+1000);
+      const amount = validateAmount.sub(fee);
+      expect(beneficiaryBalanceAfter - beneficiaryBalanceBefore).to.equal(
+        fee
+      );
+      expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.equal(
+        amount
+      );
+    });
+
+    describe("Success", function () {
+      it("Should create a new token", async function () {
+        const balance = await DbiliaToken.balanceOf(user1.address);
+        const owner = await DbiliaToken.ownerOf(1);
+        expect(balance.toString()).to.equal("1");
+        expect(owner).to.equal(user1.address);
+      });
+      it("Should track the creator of card", async function () {
+        let creator = await DbiliaToken.royaltyReceivers(1);
+        expect(creator.receiverId).to.equal(
+          royaltyReceiverId
+        );
+        expect(creator.percentage).to.equal(
+          royaltyPercentage
+        );
+      });
+      it("Should track the owner of token", async function () {
+        expect(await DbiliaToken.ownerOf(1)).to.equal(user1.address);
+      });
+      it("Should map productId and edition to a new token", async function () {
+        expect(await DbiliaToken.productEditions(productId, edition)).to.equal(
+          1
+        );
+      });
+      it("Should keep a token uri", async function () {
+        expect(await DbiliaToken.tokenURI(1)).to.equal(tokenURI);
+      });
+    });
+
+    describe("Fail", function () {
+      it("Should fail if other accounts trying to trigger", async function () {
+        await expect(
+          DbiliaToken.connect(user1).mintWithETHAndPurchase(
+            user2.address,
+            validateAmount,
+            user1.address,
+            royaltyReceiverId,
+            royaltyPercentage,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("caller is not one of Dbilia accounts");
+      });
+      it("Should fail if creator address is empty", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            "0x0000000000000000000000000000000000000000",
+            validateAmount,
+            user1.address,
+            royaltyReceiverId,
+            royaltyPercentage,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("creator address is empty");
+      });
+      it("Should fail if validateAmount is empty", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            user2.address,
+            0,
+            user1.address,
+            royaltyReceiverId,
+            royaltyPercentage,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("Invalid amount");
+      });
+      it("Should fail if minter address is empty", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            user2.address,
+            validateAmount,
+            "0x0000000000000000000000000000000000000000",
+            royaltyReceiverId,
+            royaltyPercentage,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("minter address is empty");
+      });
+      it("Should fail if royaltyReceiverId is missing", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            user2.address,
+            validateAmount,
+            user1.address,
+            "",
+            royaltyPercentage,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("royalty receiver id is empty");
+      });
+      it("Should fail if royaltyPercentage is greater than 99(max)", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            user2.address,
+            validateAmount,
+            user1.address,
+            royaltyReceiverId,
+            100,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("royalty percentage is empty or exceeded max");
+      });
+      it("Should fail if productId is missing", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            user2.address,
+            validateAmount,
+            user1.address,
+            royaltyReceiverId,
+            royaltyPercentage,
+            "",
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("product id is empty");
+      });
+      it("Should fail if token uri is missing", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            user2.address,
+            validateAmount,
+            user1.address,
+            royaltyReceiverId,
+            royaltyPercentage,
+            productId,
+            edition,
+            ""
+          )
+        ).to.be.revertedWith("token uri is empty");
+      });
+      it("Should fail if product edition has already been created", async function () {
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            user2.address,
+            validateAmount,
+            user1.address,
+            royaltyReceiverId,
+            royaltyPercentage,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("product edition has already been created");
       });
     });
   });

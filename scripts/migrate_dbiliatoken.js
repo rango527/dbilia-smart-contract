@@ -23,6 +23,23 @@ const productIdEditionList = [
 
 async function main() {
   const signers = await hre.ethers.getSigners();
+  const signerCEO = signers[0];
+  const signerDbiliaTrust = signers[1];
+
+  const { chainId } = await hre.ethers.provider.getNetwork();
+
+  //// For WethReceiver ////
+  let wethAddress;
+  let beneficiaryAddress;
+
+  // Matic mainnet
+  if (chainId === 137) {
+    beneficiaryAddress = signerDbiliaTrust.address;
+    wethAddress = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
+  } else {
+    beneficiaryAddress = "0x174D5F160C194101C74aF6eeBaed2bc61A71F111";
+    wethAddress = "0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa";
+  }
 
   const DbiliaToken = await hre.ethers.getContractFactory("DbiliaToken");
 
@@ -35,7 +52,9 @@ async function main() {
   const DbiliaTokenContract_new = await DbiliaToken.deploy(
     "Dbilia New",
     "NFT",
-    25
+    25,
+    wethAddress,
+    beneficiaryAddress
   );
 
   // Get the totalSuppy of the current DbiliaToken contract

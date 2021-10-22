@@ -1,7 +1,7 @@
 const fs = require("fs");
 // Set to true for Momenta app with base currency of EUR. Any functions of "WithFiat" will be meant for "WithEUR"
 // Set to false for Dbilia app with base currency of USD
-const useEUR = true;
+const useEUR = false;
 
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
@@ -16,10 +16,28 @@ async function main() {
   }
 
   const signers = await hre.ethers.getSigners();
+  const signerCEO = signers[0];
+  const signerDbiliaTrust = signers[1];
+
+  const { chainId } = await hre.ethers.provider.getNetwork();
+
+  //// For WethReceiver ////
+  let wethAddress;
+  let beneficiaryAddress;
+
+  // Matic mainnet
+  if (chainId === 137) {
+    beneficiaryAddress = signerDbiliaTrust.address;
+    wethAddress = "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619";
+  } else {
+    beneficiaryAddress = "0x174D5F160C194101C74aF6eeBaed2bc61A71F111";
+    wethAddress = "0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa";
+  }
+
 
   // We get the contract to deploy
   const Dbilia = await hre.ethers.getContractFactory("DbiliaToken");
-  const DbiliaToken = await Dbilia.deploy("Dbilia", "NFT", 25);
+  const DbiliaToken = await Dbilia.deploy("Dbilia", "NFT", 25, wethAddress, beneficiaryAddress);
 
   await DbiliaToken.deployed();
   fs.writeFileSync("deployed_dbiliaToken_address", DbiliaToken.address);

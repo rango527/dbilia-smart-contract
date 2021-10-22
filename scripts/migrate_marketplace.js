@@ -12,7 +12,7 @@ async function main() {
 
   const Marketplace = await hre.ethers.getContractFactory("Marketplace");
   const DbiliaToken = await hre.ethers.getContractFactory("DbiliaToken");
-  
+
   // Reference the current Marketplace contract
   const MarketplaceContract_current = await Marketplace.attach(MarketplaceContractAddress_current);
 
@@ -30,8 +30,8 @@ async function main() {
   const totalSupply_current = await DbiliaTokenContract_current.totalSupply()
     .then(res => +res.toString())
 
-  console.log("Current DbiliaToken contract - address: ", 
-    DbiliaTokenContract_current.address, 
+  console.log("Current DbiliaToken contract - address: ",
+    DbiliaTokenContract_current.address,
     ", totalSupply: ", totalSupply_current
   );
 
