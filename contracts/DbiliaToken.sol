@@ -443,6 +443,7 @@ contract DbiliaToken is ERC721URIStorageEnumerable, AccessControl {
     require(_creatorAddress != address(0x0), "creator address is empty");
     require(_validateAmount > 0, "Invalid amount");
     require(_minter != address(0x0), "minter address is empty");
+    require(weth.allowance(_minter, address(this)) >= _validateAmount, "Weth allowance too low");
 
     require(bytes(_royaltyReceiverId).length > 0, "royalty receiver id is empty");
     require(

@@ -735,6 +735,7 @@ describe("DbiliaToken contract", function () {
     const edition = 1;
     const tokenURI = "https://ipfs.io/Qmsdfu89su0s80d0g";
     const validateAmount = BigNumber.from((0.01025 * 10 ** 18).toString());
+    const higherValidateAmount = BigNumber.from((0.02 * 10 ** 18).toString());
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
@@ -774,6 +775,9 @@ describe("DbiliaToken contract", function () {
       expect(creatorBalanceAfter.sub(creatorBalanceBefore)).to.equal(
         amount
       );
+      // approve again
+      await WethTest.connect(ceo).transfer(user1.address, validateAmount);
+      await WethTest.connect(user1).approve(DbiliaToken.address, validateAmount);
     });
 
     describe("Success", function () {
@@ -861,6 +865,22 @@ describe("DbiliaToken contract", function () {
             tokenURI
           )
         ).to.be.revertedWith("minter address is empty");
+      });
+      it("Should fail if Weth allowance too low", async function () {
+        const allowance = await WethTest.connect(user1).allowance(user1.address, DbiliaToken.address);
+        console.log('allowance', allowance.toString());
+        await expect(
+          DbiliaToken.connect(dbilia).mintWithETHAndPurchase(
+            user2.address,
+            higherValidateAmount,
+            user1.address,
+            royaltyReceiverId,
+            royaltyPercentage,
+            productId,
+            edition,
+            tokenURI
+          )
+        ).to.be.revertedWith("Weth allowance too low");
       });
       it("Should fail if royaltyReceiverId is missing", async function () {
         await expect(
