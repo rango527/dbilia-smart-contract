@@ -66,6 +66,7 @@ describe("MarketPlace contract", function () {
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
+
       expect(await DbiliaToken.connect(user1).mintWithETH(
         royaltyReceiverId,
         royaltyPercentage,

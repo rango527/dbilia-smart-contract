@@ -582,7 +582,7 @@ describe("DbiliaToken contract", function () {
 
     beforeEach(async function () {
       let block = await ethers.provider.getBlock('latest');
-      expect(await DbiliaToken.connect(user1).mintWithETH(
+      expect(await DbiliaToken.connect(user1).minzWithETH(
         royaltyReceiverId,
         royaltyPercentage,
         productId,
